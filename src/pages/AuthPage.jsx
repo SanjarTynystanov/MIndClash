@@ -4,14 +4,34 @@ import { useApp } from "../context/useApp";
 import { translations } from "../i18n/translations";
 
 export default function AuthPage() {
-  const { login, register, lang } = useApp();
-  const t = translations[lang];
   const nav = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const context = useApp();
+  
+  if (!context) {
+    return <div className="page">Loading...</div>;
+  }
+
+  const { login, register, lang = 'en' } = context;
+  const langTranslations = translations[lang] || translations.en || {};
+  const t = {
+    login: 'Login',
+    register: 'Register',
+    username: 'Username',
+    password: 'Password',
+    loginDesc: 'Sign in to your account',
+    registerDesc: 'Create a new account',
+    invalidCredentials: 'Invalid credentials',
+    usernameTaken: 'Username taken',
+    needAccount: 'Need an account?',
+    haveAccount: 'Have an account?',
+    back: 'Back',
+    ...langTranslations,
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

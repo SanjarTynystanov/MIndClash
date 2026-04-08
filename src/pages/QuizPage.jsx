@@ -9,17 +9,23 @@ const POINTS_PER_CORRECT = 50;
 
 export default function QuizPage() {
   const { subject, level } = useParams();
-  const { lang, completeLevel } = useApp();
-  const t = translations[lang];
   const nav = useNavigate();
-
-  const levelNum = parseInt(level);
-  const levelQs = questions[subject]?.filter(q => q.level === levelNum) || [];
-
   const [idx, setIdx] = useState(0);
   const [chosen, setChosen] = useState(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
+  const context = useApp();
+  
+  if (!context) {
+    return <div className="page">Loading...</div>;
+  }
+
+  const { lang = 'en', completeLevel } = context;
+  const langTranslations = translations[lang] || translations.en || {};
+  const t = { question: 'Question', of: 'of', correct: 'Correct!', wrong: 'Wrong', next: 'Next', finish: 'Finish', ...langTranslations };
+
+  const levelNum = parseInt(level);
+  const levelQs = questions[subject]?.filter(q => q.level === levelNum) || [];
 
   const q = levelQs[idx];
   const total = levelQs.length;

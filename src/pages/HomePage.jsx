@@ -10,10 +10,24 @@ const SUBJECTS = [
 ];
 
 export default function HomePage() {
-  const { progress, totalScore, user, lang, leaderboard } = useApp();
-  const t = translations[lang];
   const nav = useNavigate();
   const [activeTab, setActiveTab] = useState("subjects");
+  const context = useApp();
+  
+  if (!context) {
+    return <div className="page">Loading...</div>;
+  }
+
+  const { progress, totalScore, user, lang = 'en', leaderboard } = context;
+  const langTranslations = translations[lang] || translations.en || {};
+  const t = { 
+    tagline: "Learn by playing",
+    points: "points",
+    subjects: "Subjects",
+    leaderboard: "Leaderboard",
+    stats: "Stats",
+    ...langTranslations 
+  };
 
   return (
     <div className="page animate-in">

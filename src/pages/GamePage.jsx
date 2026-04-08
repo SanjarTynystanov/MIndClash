@@ -8,11 +8,18 @@ import MathGame from "../games/MathGame";
 
 export default function GamePage() {
   const { subject, level } = useParams();
-  const { lang, completeLevel } = useApp();
-  const t = translations[lang];
   const nav = useNavigate();
   const [done, setDone] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+  const context = useApp();
+  
+  if (!context) {
+    return <div className="page">Loading...</div>;
+  }
+
+  const { lang = 'en', completeLevel } = context;
+  const langTranslations = translations[lang] || translations.en || {};
+  const t = { levelComplete: 'Level Complete!', earnedPoints: 'Points Earned', level: 'Level', ...langTranslations };
 
   const handleComplete = (score) => {
     setFinalScore(score);

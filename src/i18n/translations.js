@@ -55,6 +55,7 @@ export const translations = {
     check: "Проверить",
     incorrect: "Неправильно",
     noGame: "Игра не найдена",
+  },
   en: {
     tagline: "Learn by playing — physics, chemistry, math",
     selectLevel: "Select a subject",
@@ -111,4 +112,5 @@ export const translations = {
     check: "Check",
     incorrect: "Incorrect",
     noGame: "No game found",
-}}}
+  }
+};

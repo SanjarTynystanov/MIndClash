@@ -4,9 +4,16 @@ import { translations } from "../i18n/translations";
 
 export default function SubjectPage() {
   const { subject } = useParams();
-  const { progress, lang } = useApp();
-  const t = translations[lang];
   const nav = useNavigate();
+  const context = useApp();
+  
+  if (!context) {
+    return <div className="page">Loading...</div>;
+  }
+
+  const { progress, lang = 'en' } = context;
+  const langTranslations = translations[lang] || translations.en || {};
+  const t = { back: 'Back', selectLevel: 'Select Level', ...langTranslations };
 
   const levels = Array.from({ length: 5 }, (_, i) => i + 1);
   const completed = progress[subject] || 0;
