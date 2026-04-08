@@ -1,75 +1,80 @@
-import { useApp } from "../context/useApp";
-import { translations } from "../i18n/translations";
-
-const DEFAULT_TRANSLATIONS = {
-  login: "Login",
-  logout: "Logout",
-};
+import { Link, useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AppContext } from "../context/AppContext";
 
 export default function Navbar() {
-  try {
-    const context = useApp();
-    
-    if (!context) {
-      return (
-        <nav className="navbar">
-          <div className="nav-content">
-            <div className="nav-brand">SciQuest</div>
-            <div className="nav-actions">
-              <button className="lang-toggle">EN</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => window.location.href = "/auth"}>
-                {DEFAULT_TRANSLATIONS.login}
-              </button>
-            </div>
-          </div>
-        </nav>
-      );
-    }
-    
-    const { user, logout, lang = 'en', setLang } = context;
-    
-    // Безопасное получение переводов
-    const langTranslations = translations[lang] || translations.en || DEFAULT_TRANSLATIONS;
-    const t = { ...DEFAULT_TRANSLATIONS, ...langTranslations };
+  const { user, logout } = useContext(AppContext);
+  const navigate = useNavigate();
 
-    return (
-      <nav className="navbar">
-        <div className="nav-content">
-          <div className="nav-brand">SciQuest</div>
-          <div className="nav-actions">
-            <button
-              className="lang-toggle"
-              onClick={() => setLang && setLang(lang === "ru" ? "en" : "ru")}
-            >
-              {(lang || 'en').toUpperCase()}
-            </button>
-            {user ? (
-              <button className="btn btn-ghost btn-sm" onClick={logout}>
-                {t?.logout || DEFAULT_TRANSLATIONS.logout}
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  return (
+    <nav style={styles.navbar}>
+      <div style={styles.container}>
+        <Link to="/" style={styles.logo}>
+          🧠 MindClash
+        </Link>
+        
+        <div style={styles.links}>
+          {user ? (
+            <>
+              <span style={styles.user}>👤 {user.username}</span>
+              <button onClick={handleLogout} style={styles.logoutButton}>
+                Logout
               </button>
-            ) : (
-              <button className="btn btn-ghost btn-sm" onClick={() => window.location.href = "/auth"}>
-                {t?.login || DEFAULT_TRANSLATIONS.login}
-              </button>
-            )}
-          </div>
+            </>
+          ) : (
+            <Link to="/auth" style={styles.link}>Login / Register</Link>
+          )}
         </div>
-      </nav>
-    );
-  } catch (error) {
-    console.error("Navbar error:", error);
-    return (
-      <nav className="navbar">
-        <div className="nav-content">
-          <div className="nav-brand">SciQuest</div>
-          <div className="nav-actions">
-            <button className="lang-toggle">EN</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => window.location.href = "/auth"}>
-              {DEFAULT_TRANSLATIONS.login}
-            </button>
-          </div>
-        </div>
-      </nav>
-    );
-  }
+      </div>
+    </nav>
+  );
 }
+
+const styles = {
+  navbar: {
+    background: "#1a1a2e",
+    padding: "15px 0",
+    borderBottom: "1px solid #333",
+  },
+  container: {
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 20px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  logo: {
+    fontSize: "24px",
+    fontWeight: "bold",
+    color: "#e94560",
+    textDecoration: "none",
+  },
+  links: {
+    display: "flex",
+    gap: "20px",
+    alignItems: "center",
+  },
+  link: {
+    color: "#fff",
+    textDecoration: "none",
+    fontSize: "16px",
+  },
+  user: {
+    color: "#e94560",
+    fontWeight: "bold",
+  },
+  logoutButton: {
+    background: "#e94560",
+    color: "white",
+    border: "none",
+    padding: "8px 16px",
+    borderRadius: "5px",
+    cursor: "pointer",
+  },
+};

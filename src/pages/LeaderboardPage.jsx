@@ -1,16 +1,43 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 
+// NPC с прикольными именами и случайными очками
+const NPC_PLAYERS = [
+  { username: "⚡ QuantumMaster", total_score: 2450 },
+  { username: "🧪 ChemWizard", total_score: 2320 },
+  { username: "📐 MathGuru", total_score: 2180 },
+  { username: "🔬 LabRat", total_score: 2050 },
+  { username: "💡 EinsteinJr", total_score: 1950 },
+  { username: "🎓 ProfessorX", total_score: 1850 },
+  { username: "🧠 Brainiac", total_score: 1750 },
+  { username: "⚛️ AtomSmasher", total_score: 1650 },
+  { username: "🧪 Alchemist", total_score: 1550 },
+  { username: "📊 StatMaster", total_score: 1450 },
+];
+
 export default function HomePage() {
   const { user, progress, totalScore, leaderboard } = useContext(AppContext);
-  const [activeTab, setActiveTab] = useState("subjects"); // subjects, leaderboard
+  const [activeTab, setActiveTab] = useState("subjects");
+  const [combinedLeaderboard, setCombinedLeaderboard] = useState([]);
 
   const subjects = [
     { id: "physics", name: "Physics", icon: "⚛️", color: "#e94560" },
     { id: "chemistry", name: "Chemistry", icon: "🧪", color: "#533483" },
     { id: "math", name: "Math", icon: "📐", color: "#0f3460" },
   ];
+
+  // Комбинируем реальных игроков с NPC
+  useEffect(() => {
+    const realPlayers = leaderboard.map(p => ({ ...p, isNPC: false }));
+    const npcPlayers = NPC_PLAYERS.map(npc => ({ ...npc, isNPC: true }));
+    
+    // Смешиваем и сортируем по очкам
+    const all = [...realPlayers, ...npcPlayers];
+    all.sort((a, b) => b.total_score - a.total_score);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCombinedLeaderboard(all.slice(0, 20)); // Топ 20
+  }, [leaderboard]);
 
   return (
     <div style={styles.container}>
@@ -84,21 +111,33 @@ export default function HomePage() {
       {activeTab === "leaderboard" && (
         <div style={styles.leaderboardCard}>
           <h2 style={styles.leaderboardTitle}>🏆 Top Players</h2>
-          {leaderboard.length === 0 ? (
-            <p style={styles.noData}>No data yet. Complete some levels!</p>
+          <p style={styles.leaderboardSubtitle}>Compete with players worldwide!</p>
+          
+          {combinedLeaderboard.length === 0 ? (
+            <p style={styles.noData}>Loading leaderboard...</p>
           ) : (
             <div style={styles.leaderboardList}>
-              {leaderboard.map((player, index) => (
+              {combinedLeaderboard.map((player, index) => (
                 <div key={index} style={styles.leaderboardItem}>
                   <div style={styles.rank}>
                     {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
                   </div>
-                  <div style={styles.playerName}>{player.username}</div>
+                  <div style={styles.playerInfo}>
+                    <div style={styles.playerName}>
+                      {player.username}
+                      {player.isNPC && <span style={styles.npcBadge}>🤖 NPC</span>}
+                      {!player.isNPC && player.username === user?.username && <span style={styles.youBadge}>YOU</span>}
+                    </div>
+                  </div>
                   <div style={styles.playerScore}>{player.total_score} pts</div>
                 </div>
               ))}
             </div>
           )}
+          
+          <div style={styles.leaderboardFooter}>
+            <p>💡 Tip: Complete more levels to climb the ranks!</p>
+          </div>
         </div>
       )}
     </div>
@@ -221,7 +260,7 @@ const styles = {
     fontSize: "14px",
   },
   leaderboardCard: {
-    maxWidth: "600px",
+    maxWidth: "700px",
     margin: "0 auto",
     background: "#1a1a2e",
     borderRadius: "15px",
@@ -231,12 +270,20 @@ const styles = {
   leaderboardTitle: {
     textAlign: "center",
     color: "#e94560",
+    marginBottom: "5px",
+  },
+  leaderboardSubtitle: {
+    textAlign: "center",
+    color: "#888",
+    fontSize: "14px",
     marginBottom: "20px",
   },
   leaderboardList: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
+    maxHeight: "500px",
+    overflowY: "auto",
   },
   leaderboardItem: {
     display: "grid",
@@ -245,14 +292,37 @@ const styles = {
     padding: "12px",
     background: "#0a0a1a",
     borderRadius: "8px",
+    transition: "transform 0.2s",
   },
   rank: {
     fontSize: "20px",
     fontWeight: "bold",
   },
+  playerInfo: {
+    display: "flex",
+    alignItems: "center",
+  },
   playerName: {
     color: "#fff",
     fontWeight: "bold",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+  npcBadge: {
+    background: "#533483",
+    color: "#fff",
+    fontSize: "10px",
+    padding: "2px 6px",
+    borderRadius: "10px",
+  },
+  youBadge: {
+    background: "#e94560",
+    color: "#fff",
+    fontSize: "10px",
+    padding: "2px 6px",
+    borderRadius: "10px",
   },
   playerScore: {
     color: "#e94560",
@@ -263,5 +333,13 @@ const styles = {
     textAlign: "center",
     color: "#888",
     padding: "40px",
+  },
+  leaderboardFooter: {
+    marginTop: "20px",
+    padding: "15px",
+    textAlign: "center",
+    color: "#888",
+    fontSize: "12px",
+    borderTop: "1px solid #333",
   },
 };

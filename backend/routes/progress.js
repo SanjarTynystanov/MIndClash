@@ -5,36 +5,79 @@ const auth = require("../middleware/auth");
 const router = express.Router();
 
 // Get profile + progress
-router.get("/profile", auth, (req, res) => {
-  const userId = req.user.id;
-  db.all("SELECT * FROM progress WHERE user_id = ?", [userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Server error" });
+router.get("/profile", auth, async (req, res) => {
+  try {
+    const rows = await db.allAsync(
+      "SELECT subject, MAX(level) as level FROM progress WHERE user_id = ? GROUP BY subject",
+      [req.user.id]
+    );
+    
+    const scoreRow = await db.getAsync(
+      "SELECT SUM(score) as total FROM progress WHERE user_id = ?",
+      [req.user.id]
+    );
+    
     const progress = {};
     rows.forEach(row => {
-      progress[row.subject] = Math.max(progress[row.subject] || 0, row.level);
+      progress[row.subject] = row.level;
     });
-
-    db.get("SELECT SUM(score) as total FROM progress WHERE user_id = ?", [userId], (err, row) => {
-      if (err) return res.status(500).json({ error: "Server error" });
-      const totalScore = row ? row.total || 0 : 0;
-      res.json({ user: req.user, progress, totalScore });
+    
+    res.json({
+      user: req.user,
+      progress,
+      totalScore: scoreRow?.total || 0
     });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // Save progress
-router.post("/progress", auth, (req, res) => {
+router.post("/progress", auth, async (req, res) => {
   const { subject, level, score } = req.body;
-  if (!subject || !level || score === undefined) return res.status(400).json({ error: "Subject, level, score required" });
+  
+  if (!subject || !level || score === undefined) {
+    return res.status(400).json({ error: "Subject, level, score required" });
+  }
+  
+  if (level < 1 || level > 5) {
+    return res.status(400).json({ error: "Level must be between 1 and 5" });
+  }
 
-  db.run(
-    "INSERT OR REPLACE INTO progress (user_id, subject, level, score) VALUES (?, ?, ?, ?)",
-    [req.user.id, subject, level, score],
-    function(err) {
-      if (err) res.status(500).json({ error: "Server error" });
-      else res.json({ ok: true });
+  try {
+    // Проверяем, не пройден ли уже этот уровень
+    const existing = await db.getAsync(
+      "SELECT id FROM progress WHERE user_id = ? AND subject = ? AND level = ?",
+      [req.user.id, subject, level]
+    );
+    
+    if (existing) {
+      return res.status(400).json({ error: "Level already completed" });
     }
-  );
+    
+    // Проверяем предыдущий уровень (кроме level 1)
+    if (level > 1) {
+      const prevLevel = await db.getAsync(
+        "SELECT id FROM progress WHERE user_id = ? AND subject = ? AND level = ?",
+        [req.user.id, subject, level - 1]
+      );
+      
+      if (!prevLevel) {
+        return res.status(400).json({ error: "Complete previous level first" });
+      }
+    }
+    
+    await db.runAsync(
+      "INSERT INTO progress (user_id, subject, level, score) VALUES (?, ?, ?, ?)",
+      [req.user.id, subject, level, score]
+    );
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 module.exports = router;

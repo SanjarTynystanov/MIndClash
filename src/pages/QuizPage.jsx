@@ -1,148 +1,141 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useApp } from "../context/useApp";
-import { translations } from "../i18n/translations";
+import { useState, useContext } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { AppContext } from "../context/AppContext";
 import { questions } from "../data/questions";
-
-const LETTERS = ["A", "B", "C", "D"];
-const POINTS_PER_CORRECT = 50;
+import PhysicsGame from "../games/PhysicsGame";
+import ChemistryGame from "../games/ChemistryGame";
+import MathGame from "../games/MathGame";
 
 export default function QuizPage() {
   const { subject, level } = useParams();
-  const nav = useNavigate();
-  const [idx, setIdx] = useState(0);
-  const [chosen, setChosen] = useState(null);
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const context = useApp();
+  const navigate = useNavigate();
+  const { completeLevel } = useContext(AppContext);
   
-  if (!context) {
-    return <div className="page">Loading...</div>;
-  }
-
-  const { lang = 'en', completeLevel } = context;
-  const langTranslations = translations[lang] || translations.en || {};
-  const t = { question: 'Question', of: 'of', correct: 'Correct!', wrong: 'Wrong', next: 'Next', finish: 'Finish', ...langTranslations };
-
-  const levelNum = parseInt(level);
-  const levelQs = questions[subject]?.filter(q => q.level === levelNum) || [];
-
-  const q = levelQs[idx];
-  const total = levelQs.length;
-
-  const colors = { physics: "var(--physics)", chemistry: "var(--chemistry)", math: "var(--math)" };
-  const accentColor = colors[subject];
-
-  function pick(i) {
-    if (chosen !== null) return;
-    setChosen(i);
-    if (i === q.answer) setScore(s => s + POINTS_PER_CORRECT);
-  }
-
-  async function next() {
-    if (idx + 1 >= total) {
-      console.log("Completing level with score:", score);
-      await completeLevel(subject, levelNum, score + (chosen === q?.answer ? 0 : 0));
-      setDone(true);
-    } else {
-      setIdx(i => i + 1);
-      setChosen(null);
+  const [gameCompleted, setGameCompleted] = useState(false);
+  
+  const levelData = questions[subject]?.find(q => q.level === parseInt(level));
+  
+  const handleGameComplete = (success) => {
+    if (success) {
+      setGameCompleted(true);
+      completeLevel(subject, parseInt(level), 50);
+      
+      setTimeout(() => {
+        if (parseInt(level) < 5) {
+          navigate(`/quiz/${subject}/${parseInt(level) + 1}`);
+        } else {
+          navigate(`/subject/${subject}`);
+        }
+      }, 1500);
     }
-  }
-
-  if (!q && !done) return <div className="page"><p style={{ color: "var(--text2)" }}>No questions found.</p></div>;
-
-  if (done) {
-    const earned = score;
+  };
+  
+  if (!levelData) {
     return (
-      <div className="page animate-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh", textAlign: "center" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
-        <h2 style={{ fontSize: "26px", fontWeight: "700", marginBottom: "8px" }}>{t.levelComplete}</h2>
-        <p style={{ color: "var(--text2)", marginBottom: "28px" }}>{t.level} {level} · {subject}</p>
-
-        <div className="card" style={{ width: "100%", maxWidth: "280px", textAlign: "center", marginBottom: "24px" }}>
-          <div style={{ fontSize: "13px", color: "var(--text2)", marginBottom: "6px" }}>{t.earnedPoints}</div>
-          <div style={{ fontSize: "42px", fontWeight: "700", color: accentColor }}>+{earned}</div>
-        </div>
-
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button className="btn btn-ghost" onClick={() => nav(`/subject/${subject}`)}>
-            ← {t.levels}
-          </button>
-          <button className="btn btn-primary" onClick={() => nav("/")}>
-            {lang === "ru" ? "На главную" : "Home"}
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <h2>Level not found!</h2>
+          <button onClick={() => navigate(`/subject/${subject}`)} style={styles.button}>
+            Back to Subjects
           </button>
         </div>
       </div>
     );
   }
-
-  const qData = q[lang] || q.ru;
-
-  return (
-    <div className="page animate-in">
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => nav(`/subject/${subject}`)}>← {t.back}</button>
-        <span className={`badge badge-${subject}`}>{t[subject]} · {t.level} {level}</span>
-        <span style={{ fontSize: "13px", color: "var(--text2)", fontFamily: "'DM Mono', monospace" }}>
-          {idx + 1}/{total}
-        </span>
-      </div>
-
-      {/* Progress */}
-      <div className="progress-bar" style={{ marginBottom: "28px" }}>
-        <div className={`progress-fill fill-${subject}`} style={{ width: `${((idx + (chosen !== null ? 1 : 0)) / total) * 100}%` }} />
-      </div>
-
-      {/* Score */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <div className="score-chip" style={{ fontSize: "12px" }}>★ {score}</div>
-      </div>
-
-      {/* Question */}
-      <div className="card" style={{ marginBottom: "20px" }}>
-        <p style={{ fontSize: "11px", color: "var(--text2)", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: "600" }}>
-          {t.question} {idx + 1} {t.of} {total}
-        </p>
-        <p style={{ fontSize: "18px", fontWeight: "600", lineHeight: "1.5" }}>{qData.q}</p>
-      </div>
-
-      {/* Options */}
-      <div style={{ marginBottom: "20px" }}>
-        {qData.opts.map((opt, i) => {
-          let cls = "option-btn";
-          if (chosen !== null) {
-            if (i === q.answer) cls += " correct";
-            else if (i === chosen) cls += " wrong";
-          }
-          return (
-            <button key={i} className={cls} onClick={() => pick(i)} disabled={chosen !== null}>
-              <span className="option-letter">{LETTERS[i]}</span>
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Feedback */}
-      {chosen !== null && (
-        <div className="animate-in" style={{ textAlign: "center", marginBottom: "20px" }}>
-          <p style={{
-            fontSize: "15px", fontWeight: "600",
-            color: chosen === q.answer ? "var(--chemistry)" : "#ff6b6b"
-          }}>
-            {chosen === q.answer ? `✓ ${t.correct} +${POINTS_PER_CORRECT}` : `✗ ${t.wrong}`}
-          </p>
+  
+  if (gameCompleted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.resultCard}>
+          <h1>🎉 Level Completed!</h1>
+          <p>+50 points earned!</p>
+          <button onClick={() => navigate(`/subject/${subject}`)} style={styles.button}>
+            Continue →
+          </button>
         </div>
-      )}
-
-      {/* Next button */}
-      {chosen !== null && (
-        <button className="btn btn-primary animate-pop" style={{ width: "100%", padding: "13px" }} onClick={next}>
-          {idx + 1 >= total ? t.finish : t.next} →
-        </button>
-      )}
+      </div>
+    );
+  }
+  
+  const renderGame = () => {
+    switch(subject) {
+      case 'physics':
+        return <PhysicsGame onComplete={handleGameComplete} question={levelData} />;
+      case 'chemistry':
+        return <ChemistryGame onComplete={handleGameComplete} question={levelData} />;
+      case 'math':
+        return <MathGame onComplete={handleGameComplete} question={levelData} />;
+      default:
+        return (
+          <div style={styles.defaultGame}>
+            <h2>{levelData?.ru?.q}</h2>
+            <button onClick={() => handleGameComplete(true)} style={styles.button}>
+              Complete Level
+            </button>
+          </div>
+        );
+    }
+  };
+  
+  return (
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <div style={styles.badge}>{subject.toUpperCase()} - Level {level}</div>
+      </div>
+      {renderGame()}
     </div>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    background: "#0a0a1a",
+    padding: "40px 20px",
+  },
+  header: {
+    textAlign: "center",
+    marginBottom: "30px",
+  },
+  badge: {
+    display: "inline-block",
+    padding: "8px 20px",
+    background: "#e94560",
+    borderRadius: "20px",
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  resultCard: {
+    maxWidth: "500px",
+    margin: "100px auto",
+    background: "#1a1a2e",
+    borderRadius: "15px",
+    padding: "40px",
+    textAlign: "center",
+    border: "1px solid #333",
+  },
+  button: {
+    background: "#e94560",
+    color: "white",
+    border: "none",
+    padding: "12px 30px",
+    fontSize: "16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginTop: "20px",
+  },
+  card: {
+    maxWidth: "500px",
+    margin: "100px auto",
+    background: "#1a1a2e",
+    borderRadius: "15px",
+    padding: "40px",
+    textAlign: "center",
+  },
+  defaultGame: {
+    background: "#1a1a2e",
+    borderRadius: "15px",
+    padding: "40px",
+    textAlign: "center",
+  },
+};
