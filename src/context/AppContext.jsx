@@ -141,8 +141,6 @@ export function AppProvider({ children }) {
         token,
         progress,
         totalScore,
-        lang,
-        setLang,
         login,
         register,
         logout,
