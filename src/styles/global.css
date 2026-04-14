@@ -1,6 +1,90 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
 :root {
+  --bg: #06060F;
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.1);
+  --neon-blue: #00c8ff;
+  --neon-purple: #8060ff;
+  --neon-pink: #ff3c78;
+  --text-muted: rgba(255,255,255,0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Grid background */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(0,200,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Glow orbs */
+.glow-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: -1;
+}
+.orb1 { width: 450px; height: 450px; background: rgba(128, 96, 255, 0.28); top: -120px; left: -80px; }
+.orb2 { width: 380px; height: 380px; background: rgba(0, 200, 255, 0.18); bottom: 80px; right: -100px; }
+
+/* Main title like in poster */
+.logo-main {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 4.2rem;
+  font-weight: 900;
+  letter-spacing: -3px;
+  background: linear-gradient(135deg, #fff 0%, #00c8ff 35%, #8060ff 65%, #ff3c78 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 40px rgba(0, 200, 255, 0.5);
+}
+
+/* Card style from poster */
+.info-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 25px rgba(0, 200, 255, 0.2);
+}
+
+.info-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
+}
+/* :root {
   --bg: linear-gradient(135deg, #0e0e14 0%, #1a1a24 100%);
   --bg2: linear-gradient(135deg, #16161f 0%, #20202a 100%);
   --bg3: linear-gradient(135deg, #1e1e2a 0%, #282836 100%);
@@ -378,4 +462,4 @@ body {
 .lang-toggle:hover { background: var(--bg); }
 
 .input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-size: 14px; color: var(--text); font-family: inherit; }
-.input:focus { outline: none; border-color: var(--physics); }
+.input:focus { outline: none; border-color: var(--physics); } 

@@ -1,6 +1,7 @@
 import { useContext, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
+import "../styles/global.css"; 
 
 // NPC с прикольными именами и случайными очками
 const NPC_PLAYERS = [

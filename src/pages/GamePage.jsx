@@ -5,6 +5,7 @@ import { translations } from "../i18n/translations";
 import PhysicsGame from "../games/PhysicsGame";
 import ChemistryGame from "../games/ChemistryGame";
 import MathGame from "../games/MathGame";
+import "../styles/global.css"; 
 
 export default function GamePage() {
   const { subject, level } = useParams();

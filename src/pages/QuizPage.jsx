@@ -5,6 +5,7 @@ import { questions } from "../data/questions";
 import PhysicsGame from "../games/PhysicsGame";
 import ChemistryGame from "../games/ChemistryGame";
 import MathGame from "../games/MathGame";
+import "../styles/global.css"; 
 
 export default function QuizPage() {
   const { subject, level } = useParams();

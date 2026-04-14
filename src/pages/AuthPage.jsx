@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/useApp";
 import { translations } from "../i18n/translations";
+import "../styles/global.css";  
 
 export default function AuthPage() {
   const nav = useNavigate();
