@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState,  useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import "../styles/global.css"; 
@@ -20,25 +20,37 @@ const NPC_PLAYERS = [
 export default function HomePage() {
   const { user, progress, totalScore, leaderboard } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("subjects");
-  const [combinedLeaderboard, setCombinedLeaderboard] = useState([]);
+
+  // Комбинируем реальных игроков с NPC - используем useMemo вместо useEffect
+  const combinedLeaderboard = useMemo(() => {
+    console.log("Создание комбинированного лидерборда");
+    console.log("Реальные игроки из leaderboard:", leaderboard);
+    
+    // Реальные игроки (из базы данных)
+    const realPlayers = Array.isArray(leaderboard) && leaderboard.length > 0 
+      ? leaderboard.map(p => ({ ...p, isNPC: false }))
+      : [];
+    
+    console.log("Реальных игроков:", realPlayers.length);
+    console.log("NPC игроков:", NPC_PLAYERS.length);
+    
+    // NPC игроки
+    const npcPlayers = NPC_PLAYERS.map(npc => ({ ...npc, isNPC: true }));
+    
+    // Смешиваем и сортируем по очкам (от большего к меньшему)
+    const all = [...realPlayers, ...npcPlayers];
+    all.sort((a, b) => b.total_score - a.total_score);
+    
+    console.log("Всего игроков в таблице:", all.length);
+    
+    return all.slice(0, 20); // Топ 20
+  }, [leaderboard]); // Зависимость от leaderboard
 
   const subjects = [
     { id: "physics", name: "Physics", icon: "⚛️", color: "#e94560" },
     { id: "chemistry", name: "Chemistry", icon: "🧪", color: "#533483" },
     { id: "math", name: "Math", icon: "📐", color: "#0f3460" },
   ];
-
-  // Комбинируем реальных игроков с NPC
-  useEffect(() => {
-    const realPlayers = leaderboard.map(p => ({ ...p, isNPC: false }));
-    const npcPlayers = NPC_PLAYERS.map(npc => ({ ...npc, isNPC: true }));
-    
-    // Смешиваем и сортируем по очкам
-    const all = [...realPlayers, ...npcPlayers];
-    all.sort((a, b) => b.total_score - a.total_score);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCombinedLeaderboard(all.slice(0, 20)); // Топ 20
-  }, [leaderboard]);
 
   return (
     <div style={styles.container}>
@@ -57,15 +69,15 @@ export default function HomePage() {
               <div style={styles.statLabel}>Total Score</div>
             </div>
             <div style={styles.statItem}>
-              <div style={styles.statValue}>{progress.physics}/5</div>
+              <div style={styles.statValue}>{progress?.physics || 0}/5</div>
               <div style={styles.statLabel}>Physics</div>
             </div>
             <div style={styles.statItem}>
-              <div style={styles.statValue}>{progress.chemistry}/5</div>
+              <div style={styles.statValue}>{progress?.chemistry || 0}/5</div>
               <div style={styles.statLabel}>Chemistry</div>
             </div>
             <div style={styles.statItem}>
-              <div style={styles.statValue}>{progress.math}/5</div>
+              <div style={styles.statValue}>{progress?.math || 0}/5</div>
               <div style={styles.statLabel}>Math</div>
             </div>
           </div>
@@ -99,7 +111,7 @@ export default function HomePage() {
               <h3 style={styles.subjectName}>{subject.name}</h3>
               {user && (
                 <div style={styles.levelProgress}>
-                  Level {progress[subject.id]} / 5
+                  Level {progress?.[subject.id] || 0} / 5
                 </div>
               )}
               <button style={styles.playButton}>Play →</button>
@@ -112,14 +124,14 @@ export default function HomePage() {
       {activeTab === "leaderboard" && (
         <div style={styles.leaderboardCard}>
           <h2 style={styles.leaderboardTitle}>🏆 Top Players</h2>
-          <p style={styles.leaderboardSubtitle}>Compete with players worldwide!</p>
+          <p style={styles.leaderboardSubtitle}>Compete with players and NPCs worldwide!</p>
           
           {combinedLeaderboard.length === 0 ? (
             <p style={styles.noData}>Loading leaderboard...</p>
           ) : (
             <div style={styles.leaderboardList}>
               {combinedLeaderboard.map((player, index) => (
-                <div key={index} style={styles.leaderboardItem}>
+                <div key={`${player.username}-${index}`} style={styles.leaderboardItem}>
                   <div style={styles.rank}>
                     {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
                   </div>
@@ -137,7 +149,7 @@ export default function HomePage() {
           )}
           
           <div style={styles.leaderboardFooter}>
-            <p>💡 Tip: Complete more levels to climb the ranks!</p>
+            <p>💡 Tip: Complete more levels to climb the ranks and beat the NPCs!</p>
           </div>
         </div>
       )}

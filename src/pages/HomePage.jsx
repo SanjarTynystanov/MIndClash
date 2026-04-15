@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
+import '../styles/global.css';
 
 export default function HomePage() {
   const { user, progress, totalScore, leaderboard } = useContext(AppContext);
@@ -80,27 +81,32 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Leaderboard Tab */}
-      {activeTab === "leaderboard" && (
-        <div style={styles.leaderboardCard}>
-          <h2 style={styles.leaderboardTitle}>🏆 Top Players</h2>
-          {leaderboard.length === 0 ? (
-            <p style={styles.noData}>No data yet. Complete some levels!</p>
-          ) : (
-            <div style={styles.leaderboardList}>
-              {leaderboard.map((player, index) => (
-                <div key={index} style={styles.leaderboardItem}>
-                  <div style={styles.rank}>
-                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
-                  </div>
-                  <div style={styles.playerName}>{player.username}</div>
-                  <div style={styles.playerScore}>{player.total_score} pts</div>
-                </div>
-              ))}
+     {/* Leaderboard Tab */}
+{activeTab === "leaderboard" && (
+  <div style={styles.leaderboardCard}>
+    <h2 style={styles.leaderboardTitle}>🏆 Top Players</h2>
+    {/* ИСПРАВЛЕНИЕ: Используем combinedLeaderboard вместо leaderboard */}
+    {combinedLeaderboard.length === 0 ? (
+      <p style={styles.noData}>No data yet. Complete some levels!</p>
+    ) : (
+      <div style={styles.leaderboardList}>
+        {combinedLeaderboard.map((player, index) => (
+          <div key={index} style={styles.leaderboardItem}>
+            <div style={styles.rank}>
+              {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
             </div>
-          )}
-        </div>
-      )}
+            <div style={styles.playerName}>
+              {player.username}
+              {/* Добавляем бейдж NPC для наглядности */}
+              {player.isNPC && <span style={styles.npcBadge}>🤖 NPC</span>}
+            </div>
+            <div style={styles.playerScore}>{player.total_score} pts</div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
     </div>
   );
 }

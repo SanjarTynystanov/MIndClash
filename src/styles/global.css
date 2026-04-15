@@ -482,3 +482,17 @@ body {
 .level-card-available:active {
   transform: scale(0.98);
 }
+/* Простой эффект появления окна */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.pyro > .before, .pyro > .after {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  box-shadow: 0 0 white;
+  animation: 1s bang ease-out infinite alternate;
+}
