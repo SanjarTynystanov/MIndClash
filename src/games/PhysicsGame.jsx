@@ -1,252 +1,220 @@
-// import { useState, useRef, useEffect, useCallback } from "react";
-// import { translations } from "../i18n/translations";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import GameResult from '../components/GameResult'; // Убедись, что путь верный
 
-// export default function PhysicsGame({ level, lang, onComplete }) {
-//   const t = translations[lang];
-//   const canvasRef = useRef(null);
-//   const [angle, setAngle] = useState(45);
-//   const [velocity, setVelocity] = useState(50);
-//   const [isFlying, setIsFlying] = useState(false);
-//   const [score, setScore] = useState(0);
-//   const [attempts, setAttempts] = useState(0);
+const G = 9.8;
+const MAX_LIVES = 3;
+const SC = 820 / 220; 
 
-//   const targetX = 400;
-//   const targetY = 100;
-//   const gravity = 9.8;
-//   const scale = 2; // pixels per meter
+const LEVELS = [
+  { id: 1, name: "Static Target", wind: 0, targets: [{ xm: 150, ym: 0, r: 16, moving: false }], obstacles: [], laserOn: false, magnetOn: false },
+  { id: 2, name: "Moving Target", wind: 0, targets: [{ xm: 150, ym: 0, r: 16, moving: true, speed: 0.4, phase: 0, amp: 22 }], obstacles: [], laserOn: false, magnetOn: false },
+  { id: 3, name: "Wind + Barrier", wind: 0.4, targets: [{ xm: 165, ym: 0, r: 16, moving: false }], obstacles: [{ xm: 110, ym: 0, w: 3, h: 55 }], laserOn: false, magnetOn: false },
+  { id: 4, name: "Laser Zone", wind: 0.2, targets: [{ xm: 160, ym: 0, r: 16, moving: true, speed: 0.25, phase: 0, amp: 15 }], obstacles: [], laserOn: true, laserY: 55, magnetOn: false },
+  { id: 5, name: "Magnetic Chaos", wind: -0.3, targets: [{ xm: 155, ym: 0, r: 16, moving: true, speed: 0.5, phase: 1, amp: 18 }], obstacles: [{ xm: 90, ym: 0, w: 3, h: 40 }], laserOn: true, laserY: 70, magnetOn: true, magnetXm: 130, magnetYm: 85, magnetF: 12 }
+];
 
-//   const drawScene = useCallback(() => {
-//     const canvas = canvasRef.current;
-//     if (!canvas) return;
-//     const ctx = canvas.getContext("2d");
-//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+const px = (xm) => xm * SC;
+const py = (ym, h) => h - 38 - ym * SC;
 
-//     // Ground
-//     ctx.fillStyle = "#4a5568";
-//     ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+export default function PhysicsGame({ level, onComplete }) {
+  const lvlIdx = (parseInt(level) || 1) - 1;
+  const lvl = LEVELS[lvlIdx] || LEVELS[0];
 
-//     // Cannon
-//     ctx.fillStyle = "#2d3748";
-//     ctx.fillRect(50, canvas.height - 70, 20, 50);
-
-//     // Target
-//     ctx.fillStyle = "#e53e3e";
-//     ctx.fillRect(targetX - 10, canvas.height - targetY - 10, 20, 20);
-
-//     // Trajectory preview
-//     if (!isFlying) {
-//       ctx.strokeStyle = "#3182ce";
-//       ctx.beginPath();
-//       for (let t = 0; t < 2; t += 0.1) {
-//         const x = 70 + velocity * Math.cos(angle * Math.PI / 180) * t * scale;
-//         const y = canvas.height - 50 - (velocity * Math.sin(angle * Math.PI / 180) * t - 0.5 * gravity * t * t) * scale;
-//         if (t === 0) ctx.moveTo(x, y);
-//         else ctx.lineTo(x, y);
-//       }
-//       ctx.stroke();
-//     }
-//   }, [angle, velocity, isFlying]);
-
-//   useEffect(() => {
-//     drawScene();
-//   }, [angle, velocity, isFlying, drawScene]);
-
-//   const shoot = () => {
-//     if (isFlying) return;
-//     setIsFlying(true);
-//     setAttempts(a => a + 1);
-//     const canvas = canvasRef.current;
-//     const ctx = canvas.getContext("2d");
-//     let t = 0;
-//     const interval = setInterval(() => {
-//       t += 0.1;
-//       const x = 70 + velocity * Math.cos(angle * Math.PI / 180) * t * scale;
-//       const y = canvas.height - 50 - (velocity * Math.sin(angle * Math.PI / 180) * t - 0.5 * gravity * t * t) * scale;
-
-//       if (x > canvas.width || y > canvas.height - 20) {
-//         setIsFlying(false);
-//         clearInterval(interval);
-//         return;
-//       }
-
-//       // Check hit
-//       if (Math.abs(x - targetX) < 10 && Math.abs((canvas.height - y) - targetY) < 10) {
-//         setScore(s => s + 100);
-//         setIsFlying(false);
-//         clearInterval(interval);
-//         onComplete(100);
-//         return;
-//       }
-
-//       drawScene();
-//       ctx.fillStyle = "#000";
-//       ctx.beginPath();
-//       ctx.arc(x, y, 5, 0, 2 * Math.PI);
-//       ctx.fill();
-//     }, 50);
-//   };
-
-//   return (
-//     <div className="page animate-in">
-//       <h2>{t.physics} {t.level} {level}: {t.shootTarget}</h2>
-//       <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-//         <div>
-//           <label>{t.angle}: {angle}°</label>
-//           <input type="range" min="0" max="90" value={angle} onChange={e => setAngle(+e.target.value)} />
-//         </div>
-//         <div>
-//           <label>{t.velocity}: {velocity} m/s</label>
-//           <input type="range" min="10" max="100" value={velocity} onChange={e => setVelocity(+e.target.value)} />
-//         </div>
-//         <button onClick={shoot} disabled={isFlying}>{t.shoot}</button>
-//       </div>
-//       <canvas ref={canvasRef} width="600" height="300" style={{ border: "1px solid #ccc", marginTop: "20px" }} />
-//       <p>{t.score}: {score} | {t.attempts}: {attempts}</p>
-//     </div>
-//   );
-// }
-import { useState, useRef } from 'react';
-
-export default function PhysicsGame({ onComplete }) {
   const [angle, setAngle] = useState(45);
   const [power, setPower] = useState(50);
-  const [message, setMessage] = useState('');
+  const [lives, setLives] = useState(MAX_LIVES);
   const [score, setScore] = useState(0);
+  const [message, setMessage] = useState({ text: '', type: '' });
+  
+  // Состояния для экранов окончания игры
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [hasWon, setHasWon] = useState(false);
+  
+  // isFlying в стейте нужен для блокировки кнопки (чтобы React видел изменения)
+  const [isFlying, setIsFlying] = useState(false);
+  
   const canvasRef = useRef(null);
-  
-  const targetX = 700;
-  const targetY = 380;
-  
-  const drawScene = (shotX = null, shotY = null) => {
+  const stateRef = useRef({
+    t: 0, bx: 10, by: 2, vx: 0, vy: 0, mvx: 0, mvy: 0, phase: 0,
+    trail: [], shake: 0
+  });
+
+  const handleRestart = () => window.location.reload();
+
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 800, 500);
-    
-    // Небо
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, 800, 450);
-    
-    // Земля
-    ctx.fillStyle = '#37700b';
-    ctx.fillRect(0, 430, 800, 70);
-    
-    // Пушка
-    ctx.fillStyle = '#79390a';
-    ctx.fillRect(50, 410, 60, 25);
-    
-    // Ствол
+    const { width: W, height: H } = canvas;
+    const s = stateRef.current;
+
     ctx.save();
-    ctx.translate(80, 422);
-    ctx.rotate((angle * Math.PI) / 360);
-    ctx.fillStyle = '#514f4d';
-    ctx.fillRect(0, -8, 70, 16);
-    ctx.restore();
-    
-    // Колеса
-    ctx.fillStyle = '#333';
-    ctx.beginPath();
-    ctx.arc(60, 435, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(100, 435, 12, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Мишень
-    ctx.fillStyle = '#ff0000';
-    ctx.beginPath();
-    ctx.arc(targetX, targetY, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Ядро
-    if (shotX && shotY) {
-      ctx.fillStyle = '#555';
-      ctx.beginPath();
-      ctx.arc(shotX, shotY, 7, 0, Math.PI * 2);
-      ctx.fill();
+    if (s.shake > 0) {
+      ctx.translate((Math.random()-0.5)*s.shake, (Math.random()-0.5)*s.shake);
+      s.shake *= 0.9;
     }
-  };
-  
-  const fireCannon = () => {
-    setMessage('');
-    drawScene();
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0d1a2e'; ctx.fillRect(0, 0, W, H);
     
-    const angleRad = (angle * Math.PI) / 180;
-    const v0 = power / 4;
-    let x = 90;
-    let y = 422;
-    let vx = v0 * Math.cos(angleRad);
-    let vy = -v0 * Math.sin(angleRad);
-    let t = 0;
-    let animationId;
-    
-    const animate = () => {
-      t += 0.05;
-      x = 90 + vx * t * 15;
-      y = 422 + vy * t * 15 + 0.5 * 9.8 * t * t * 15;
-      
-      drawScene(x, y);
-      
-      // Попадание
-      if (x >= targetX - 15 && x <= targetX + 15 && y >= targetY - 15 && y <= targetY + 15) {
-        cancelAnimationFrame(animationId);
-        setScore(score + 50);
-        setMessage('🎯 HIT! +50 points!');
-        setTimeout(() => onComplete(true), 1000);
-        return;
+    // Grid
+    ctx.strokeStyle = 'rgba(56, 139, 253, 0.05)';
+    for(let i=0; i<W; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for(let i=0; i<H; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+
+    // Ground
+    ctx.fillStyle = '#161b22'; ctx.fillRect(0, H - 38, W, 38);
+    ctx.fillStyle = '#238636'; ctx.fillRect(0, H - 39, W, 2);
+
+    // Trajectory Preview
+    if (!isFlying) {
+      const rad = (angle * Math.PI) / 180;
+      const vx0 = power * Math.cos(rad) + lvl.wind * 10;
+      const vy0 = power * Math.sin(rad);
+      ctx.beginPath(); ctx.setLineDash([4, 6]); ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      for (let t = 0; t < 2; t += 0.1) {
+        ctx.lineTo(px(10 + vx0 * t), py(2 + vy0 * t - 0.5 * G * t * t, H));
       }
-      
-      // Промах
-      if (y > 450 || x > 800 || x < 0) {
-        cancelAnimationFrame(animationId);
-        setMessage('❌ Missed! Try again!');
-        drawScene();
-        setTimeout(() => setMessage(''), 1500);
-        return;
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Projectile Trail
+    if (s.trail.length > 1) {
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(242, 204, 96, 0.3)'; ctx.lineWidth = 2;
+      s.trail.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(px(p.x), py(p.y, H));
+        else ctx.lineTo(px(p.x), py(p.y, H));
+      });
+      ctx.stroke();
+    }
+
+    // Targets & Obstacles
+    if (lvl.laserOn) {
+      ctx.strokeStyle = '#f85149'; ctx.shadowBlur = 10; ctx.shadowColor = '#f85149';
+      ctx.beginPath(); ctx.moveTo(px(60), py(lvl.laserY, H)); ctx.lineTo(px(200), py(lvl.laserY, H)); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    lvl.targets.forEach(tgt => {
+      let xm = tgt.xm + (tgt.moving ? Math.sin(s.phase * tgt.speed + tgt.phase) * tgt.amp : 0);
+      ctx.fillStyle = '#f85149'; ctx.beginPath(); ctx.arc(px(xm), py(tgt.ym || 0, H), tgt.r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px(xm), py(tgt.ym || 0, H), tgt.r*0.4, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Cannon
+    ctx.save(); ctx.translate(px(10), py(2, H)); ctx.rotate((-angle * Math.PI) / 180);
+    ctx.fillStyle = '#8b949e'; ctx.fillRect(0, -6, 40, 12); ctx.restore();
+
+    // Missile
+    if (isFlying) {
+      ctx.fillStyle = '#f2cc60'; ctx.shadowBlur = 15; ctx.shadowColor = '#f2cc60';
+      ctx.beginPath(); ctx.arc(px(s.bx), py(s.by, H), 6, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }, [angle, power, lvl, isFlying]);
+
+  useEffect(() => {
+    let frameId;
+    const loop = () => {
+      const s = stateRef.current;
+      s.phase += 0.05;
+      if (isFlying) {
+        s.t += 0.045;
+        s.bx = 10 + s.vx * s.t;
+        s.by = 2 + s.vy * s.t - 0.5 * G * s.t * s.t;
+
+        if (lvl.magnetOn) {
+            const dx = lvl.magnetXm - s.bx, dy = lvl.magnetYm - s.by;
+            const d2 = dx*dx + dy*dy + 1;
+            s.mvx += (dx / d2) * lvl.magnetF * 0.04;
+            s.mvy += (dy / d2) * lvl.magnetF * 0.04;
+            s.bx += s.mvx; s.by += s.mvy;
+        }
+
+        s.trail.push({x: s.bx, y: s.by});
+        if (s.trail.length > 20) s.trail.shift();
+
+        const tgt = lvl.targets[0];
+        const txm = tgt.xm + (tgt.moving ? Math.sin(s.phase * tgt.speed + tgt.phase) * tgt.amp : 0);
+        const dist = Math.sqrt((s.bx - txm)**2 + (s.by - (tgt.ym || 0))**2);
+
+        if (dist < tgt.r / SC) {
+          setIsFlying(false); s.shake = 15;
+          setScore(prev => prev + 100);
+          setMessage({ text: 'CRITICAL HIT! 🎯', type: 'ok' });
+          setHasWon(true);
+        } else if (s.by < -2 || s.bx > 220 || (lvl.laserOn && s.bx > 60 && s.bx < 200 && Math.abs(s.by - lvl.laserY) < 2)) {
+          setIsFlying(false); s.shake = 8;
+          if (lives <= 1) {
+            setIsGameOver(true);
+          } else {
+            setLives(l => l - 1);
+            setMessage({ text: 'CALCULATION ERROR ❌', type: 'err' });
+          }
+        }
       }
-      
-      animationId = requestAnimationFrame(animate);
+      draw();
+      frameId = requestAnimationFrame(loop);
     };
-    
-    animate();
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [draw, lvl, lives, isFlying]);
+
+  const fire = () => {
+    if (isFlying || lives <= 0) return;
+    setMessage({ text: '', type: '' });
+    const s = stateRef.current;
+    const rad = (angle * Math.PI) / 180;
+    s.vx = power * Math.cos(rad) + lvl.wind * 10; s.vy = power * Math.sin(rad);
+    s.bx = 10; s.by = 2; s.t = 0; s.mvx = 0; s.mvy = 0; s.trail = [];
+    setIsFlying(true);
   };
-  
+
+  // Вызов унифицированного экрана конца игры
+  if (isGameOver) {
+    return <GameResult status="lose" score={score} subjectName="Physics" onRestart={handleRestart} />;
+  }
+  if (hasWon) {
+    return <GameResult status="win" score={score} subjectName="Physics" onRestart={() => onComplete(true)} />;
+  }
+
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>🎯 Cannon Game</h2>
-      <p style={styles.question}>Hit the red target!</p>
-      
-      <canvas ref={canvasRef} width={800} height={500} style={styles.canvas}></canvas>
-      
-      <div style={styles.controls}>
-        <div>
-          <label>Angle: {angle}° </label>
-          <input type="range" min="0" max="90" value={angle} onChange={(e) => setAngle(Number(e.target.value))} />
+    <div style={styles.pageWrapper}>
+      <div style={styles.container}>
+        <div style={styles.header}>
+            <span style={styles.badge}>LEVEL {level}: {lvl.name}</span>
+            <div style={styles.lives}>SYSTEM INTEGRITY: {Array(lives).fill('▮').join('')}{Array(MAX_LIVES-lives).fill('▯').join('')}</div>
         </div>
-        <div>
-          <label>Power: {power}% </label>
-          <input type="range" min="10" max="100" value={power} onChange={(e) => setPower(Number(e.target.value))} />
+        <canvas ref={canvasRef} width={820} height={320} style={styles.canvas} />
+        <div style={styles.controls}>
+          <div style={styles.slGroup}>
+            <div style={styles.slLabel}>LAUNCH ANGLE: {angle}°</div>
+            <input type="range" min="5" max="85" value={angle} onChange={e => setAngle(+e.target.value)} style={styles.range} />
+          </div>
+          <div style={styles.slGroup}>
+            <div style={styles.slLabel}>INITIAL VELOCITY: {power}</div>
+            <input type="range" min="10" max="140" value={power} onChange={e => setPower(+e.target.value)} style={styles.range} />
+          </div>
+          <button onClick={fire} style={styles.fireBtn} disabled={isFlying}>INITIATE LAUNCH</button>
         </div>
-        <button onClick={fireCannon} style={styles.fireButton}>🔥 FIRE!</button>
+        {message.text && <div style={{...styles.msg, color: message.type === 'ok' ? '#5DCAA5' : '#F85149'}}>{message.text}</div>}
       </div>
-      
-      {message && <div style={styles.message}>{message}</div>}
-      <div style={styles.score}>⭐ Score: {score}</div>
     </div>
   );
 }
 
 const styles = {
-  container: { background: "#1a1a2e", borderRadius: "15px", padding: "30px", textAlign: "center" },
-  title: { color: "#e94560", marginBottom: "10px" },
-  question: { color: "#fff", fontSize: "18px", marginBottom: "20px" },
-  canvas: { background: "#87CEEB", borderRadius: "10px", margin: "20px 0", border: "2px solid #333" },
-  controls: { display: "flex", justifyContent: "center", gap: "20px", alignItems: "center", flexWrap: "wrap", marginBottom: "20px" },
-  fireButton: { background: "#e94560", color: "white", border: "none", padding: "10px 25px", fontSize: "16px", borderRadius: "8px", cursor: "pointer" },
-  message: { marginTop: "15px", fontSize: "20px", fontWeight: "bold", color: "#ffd700" },
-  score: { marginTop: "10px", fontSize: "20px", color: "#e94560" }
+  pageWrapper: { display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100vh" },
+  container: { background: "#0d1117", padding: "24px", borderRadius: "16px", border: "1px solid #30363d", color: "#c9d1d9", width: "860px", boxShadow: "0 0 40px rgba(0,0,0,0.4)" },
+  header: { display: "flex", justifyContent: "space-between", marginBottom: "16px", fontFamily: "monospace" },
+  badge: { color: "#58a6ff", fontWeight: "bold" },
+  lives: { color: "#f85149" },
+  canvas: { width: "100%", background: "#0d1a2e", borderRadius: "8px", border: "1px solid #30363d" },
+  controls: { display: "flex", gap: "20px", marginTop: "20px", background: "rgba(255,255,255,0.03)", padding: "15px", borderRadius: "8px" },
+  slGroup: { display: "flex", flexDirection: "column", flex: 1, gap: "5px" },
+  slLabel: { fontSize: "11px", color: "#8b949e", fontWeight: "bold" },
+  range: { accentColor: "#238636" },
+  fireBtn: { background: "#238636", color: "white", border: "none", padding: "0 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
+  msg: { marginTop: "15px", textAlign: "center", fontWeight: "bold", fontFamily: "monospace" }
 };

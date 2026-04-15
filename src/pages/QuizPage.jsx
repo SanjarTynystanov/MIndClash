@@ -14,19 +14,33 @@ export default function QuizPage() {
   
   const [gameCompleted, setGameCompleted] = useState(false);
   
-  const levelData = questions[subject]?.find(q => q.level === parseInt(level));
+  const currentLevel = parseInt(level) || 1;
+  const levelData = questions[subject]?.find(q => q.level === currentLevel);
+  
+  console.log("QuizPage рендер:", { subject, level, currentLevel, gameCompleted });
   
   const handleGameComplete = (success) => {
+    console.log("handleGameComplete вызван:", { success, currentLevel, subject });
+    
     if (success) {
       setGameCompleted(true);
-      completeLevel(subject, parseInt(level), 50);
+      completeLevel(subject, currentLevel, 50);
       
       setTimeout(() => {
-        if (parseInt(level) < 5) {
-          navigate(`/quiz/${subject}/${parseInt(level) + 1}`);
+        if (currentLevel < 5) {
+          const nextLevel = currentLevel + 1;
+          const nextUrl = `/quiz/${subject}/${nextLevel}`;
+          console.log("Переход на следующий уровень:", nextUrl);
+          navigate(nextUrl);
         } else {
+          console.log("Последний уровень, переход на страницу предмета");
           navigate(`/subject/${subject}`);
         }
+      }, 1500);
+    } else {
+      // Если игра проиграна - возвращаемся к выбору предмета
+      setTimeout(() => {
+        navigate(`/subject/${subject}`);
       }, 1500);
     }
   };
@@ -59,17 +73,28 @@ export default function QuizPage() {
   }
   
   const renderGame = () => {
+    console.log("Рендер игры для:", subject, "уровень:", currentLevel);
+    
     switch(subject) {
       case 'physics':
-        return <PhysicsGame onComplete={handleGameComplete} question={levelData} />;
+        return <PhysicsGame level={level} onComplete={handleGameComplete} />
       case 'chemistry':
-        return <ChemistryGame onComplete={handleGameComplete} question={levelData} />;
+        return <ChemistryGame 
+          onComplete={handleGameComplete} 
+          level={currentLevel}
+          onScoreUpdate={(points) => console.log("+", points)}
+          onGameEnd={(result) => console.log("Game ended:", result)}
+        />;
       case 'math':
-        return <MathGame onComplete={handleGameComplete} question={levelData} />;
+        return <MathGame 
+          onComplete={handleGameComplete} 
+          level={currentLevel}
+          onGameOver={() => navigate(`/subject/${subject}`)}
+        />;
       default:
         return (
           <div style={styles.defaultGame}>
-            <h2>{levelData?.ru?.q}</h2>
+            <h2>{levelData?.ru?.q || levelData?.question}</h2>
             <button onClick={() => handleGameComplete(true)} style={styles.button}>
               Complete Level
             </button>
@@ -81,7 +106,7 @@ export default function QuizPage() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.badge}>{subject.toUpperCase()} - Level {level}</div>
+        <div style={styles.badge}>{subject?.toUpperCase()} - Level {level}</div>
       </div>
       {renderGame()}
     </div>

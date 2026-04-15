@@ -12,22 +12,22 @@ export default function SubjectPage() {
       name: "Physics", 
       icon: "⚛️", 
       color: "#873cdd",
-      gradient: "linear-gradient(135deg, #690987 0%, #c73e54 100%)",
-      description: "Законы движения, энергия, сила"
+      gradient: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+      description: "Laws of motion, energy, and ballistic trajectories"
     },
     chemistry: { 
       name: "Chemistry", 
       icon: "🧪", 
       color: "#533483",
-      gradient: "linear-gradient(135deg, #533483 0%, #3a1f5c 100%)",
-      description: "Элементы, реакции, соединения"
+      gradient: "linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)",
+      description: "Molecular structures and chemical reactions"
     },
     math: { 
       name: "Math", 
       icon: "📐", 
       color: "#0f3460",
-      gradient: "linear-gradient(135deg, #0f3460 0%, #0a2540 100%)",
-      description: "Уравнения, логика, числа"
+      gradient: "linear-gradient(135deg, #1a1a2e 0%, #1a1a2e 100%)",
+      description: "Equations, logic, and numerical analysis"
     },
   };
   
@@ -37,294 +37,94 @@ export default function SubjectPage() {
   
   return (
     <div style={styles.container}>
-      {/* Hero секция */}
-      <div style={{...styles.hero, background: current.gradient}}>
+      <div style={{...styles.hero, background: current.gradient, borderBottom: `2px solid ${current.color}`}}>
         <div style={styles.heroIcon}>{current.icon}</div>
         <h1 style={styles.heroTitle}>{current.name}</h1>
         <p style={styles.heroDescription}>{current.description}</p>
         
-        {/* Прогресс-бар */}
         <div style={styles.progressContainer}>
           <div style={styles.progressLabel}>
-            <span>📊 Прогресс</span>
-            <span>{currentLevel}/5 уровней</span>
+            <span>TOTAL PROGRESS</span>
+            <span>{currentLevel}/5 MODULES</span>
           </div>
           <div style={styles.progressBar}>
-            <div style={{...styles.progressFill, width: `${(currentLevel / 5) * 100}%`}}></div>
+            <div style={{...styles.progressFill, width: `${(currentLevel / 5) * 100}%`, background: current.color}}></div>
           </div>
         </div>
       </div>
       
-      {/* Сетка уровней */}
       <div style={styles.levelsGrid}>
         {levels.map((level) => {
           const isLocked = level > currentLevel + 1;
           const isCompleted = level <= currentLevel;
-          const isCurrent = level === currentLevel + 1 && !isCompleted;
+          const isCurrent = level === currentLevel + 1;
           
           return (
             <Link
               key={level}
               to={!isLocked ? `/quiz/${subject}/${level}` : "#"}
+              className={!isLocked ? "level-card-available" : ""}
               style={{
                 ...styles.levelCard,
                 ...(isLocked && styles.levelCardLocked),
                 ...(isCompleted && styles.levelCardCompleted),
-                ...(isCurrent && styles.levelCardCurrent),
-                ...(!isLocked && !isCompleted && styles.levelCardAvailable)
+                ...(isCurrent && styles.levelCardCurrent)
               }}
               onClick={(e) => isLocked && e.preventDefault()}
             >
-              <div style={styles.levelNumber}>
-                {isCompleted ? "✅" : `Уровень ${level}`}
+              <div style={styles.levelHeader}>
+                <span style={styles.levelNumber}>MODULE {level < 10 ? `0${level}` : level}</span>
+                {isCompleted && <span style={styles.checkIcon}>SCANNED</span>}
               </div>
               
               <div style={styles.levelContent}>
-                {isLocked && (
-                  <div style={styles.lockIcon}>🔒</div>
-                )}
-                {isCompleted && (
-                  <div style={styles.completedBadge}>
-                    <span>Пройден</span>
-                    <span style={styles.checkMark}>✓</span>
-                  </div>
-                )}
-                {isCurrent && (
-                  <div style={styles.currentBadge}>
-                    <span>Текущий</span>
-                    <span style={styles.playIcon}>▶</span>
-                  </div>
-                )}
-                {!isLocked && !isCompleted && !isCurrent && (
-                  <div style={styles.availableBadge}>
-                    <span>Доступен</span>
-                    <span style={styles.lockIcon}>🔓</span>
-                  </div>
+                {isLocked ? (
+                  <span style={styles.statusTextLocked}>ACCESS DENIED</span>
+                ) : isCompleted ? (
+                  <span style={styles.statusTextCompleted}>STATION READY</span>
+                ) : (
+                  <span style={styles.statusTextCurrent}>READY FOR TEST</span>
                 )}
               </div>
               
               {!isLocked && (
-                <button style={styles.playButton}>
-                  {isCompleted ? "Повторить" : "Начать"}
-                </button>
+                <div style={{...styles.actionHint, color: isCompleted ? "#4caf50" : "#58a6ff"}}>
+                  {isCompleted ? "RE-RUN SIMULATION →" : "START MISSION →"}
+                </div>
               )}
             </Link>
           );
         })}
       </div>
-      
-      {/* Кнопка назад */}
-      <Link to="/" style={styles.backButton}>
-        ← Вернуться на главную
-      </Link>
+
+      <Link to="/" style={styles.backButton}>BACK TO LABORATORY</Link>
     </div>
   );
 }
 
+// Стили обновлены под "Инженерный" стиль
 const styles = {
-  container: {
-    minHeight: "100vh",
-    background: "#0a0a1a",
-    paddingBottom: "60px",
-  },
-  
-  // Hero секция
-  hero: {
-    padding: "40px 20px",
-    textAlign: "center",
-    color: "white",
-    borderBottomLeftRadius: "30px",
-    borderBottomRightRadius: "30px",
-    marginBottom: "40px",
-  },
-  heroIcon: {
-    fontSize: "64px",
-    marginBottom: "10px",
-  },
-  heroTitle: {
-    fontSize: "36px",
-    marginBottom: "10px",
-    fontWeight: "bold",
-  },
-  heroDescription: {
-    fontSize: "14px",
-    opacity: 0.9,
-    marginBottom: "30px",
-  },
-  
-  // Прогресс-бар
-  progressContainer: {
-    maxWidth: "400px",
-    margin: "0 auto",
-  },
-  progressLabel: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "14px",
-    marginBottom: "8px",
-    opacity: 0.9,
-  },
-  progressBar: {
-    height: "8px",
-    background: "rgba(255,255,255,0.2)",
-    borderRadius: "4px",
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    background: "white",
-    borderRadius: "4px",
-    transition: "width 0.3s ease",
-  },
-  
-  // Сетка уровней
-  levelsGrid: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "0 20px",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-    gap: "20px",
-  },
-  
-  // Карточки уровней
-  levelCard: {
-    background: "#1a1a2e",
-    borderRadius: "16px",
-    padding: "20px",
-    textDecoration: "none",
-    transition: "all 0.3s ease",
-    border: "1px solid #333",
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px",
-  },
-  levelCardAvailable: {
-    borderColor: "#e94560",
-    boxShadow: "0 0 15px rgba(233,69,96,0.2)",
-  },
-  levelCardLocked: {
-    opacity: 0.5,
-    cursor: "not-allowed",
-  },
-  levelCardCompleted: {
-    borderColor: "#4caf50",
-    background: "rgba(76,175,80,0.1)",
-  },
-  levelCardCurrent: {
-    borderColor: "#ff9800",
-    boxShadow: "0 0 20px rgba(255,152,0,0.3)",
-    transform: "scale(1.02)",
-  },
-  
-  levelNumber: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    padding: "10px",
-    borderRadius: "10px",
-    background: "rgba(255,255,255,0.05)",
-  },
-  
-  levelContent: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: "60px",
-  },
-  
-  lockIcon: {
-    fontSize: "32px",
-  },
-  
-  completedBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    background: "#4caf50",
-    padding: "8px 16px",
-    borderRadius: "20px",
-    color: "white",
-    fontSize: "14px",
-  },
-  checkMark: {
-    fontSize: "18px",
-    fontWeight: "bold",
-  },
-  
-  currentBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    background: "#ff9800",
-    padding: "8px 16px",
-    borderRadius: "20px",
-    color: "white",
-    fontSize: "14px",
-  },
-  playIcon: {
-    fontSize: "16px",
-  },
-  
-  availableBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    background: "rgba(233,69,96,0.2)",
-    padding: "8px 16px",
-    borderRadius: "20px",
-    color: "#e94560",
-    fontSize: "14px",
-  },
-  
-  playButton: {
-    background: "#e94560",
-    color: "white",
-    border: "none",
-    padding: "10px",
-    borderRadius: "8px",
-    fontSize: "14px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    marginTop: "10px",
-  },
-  
-  // Кнопка назад
-  backButton: {
-    display: "block",
-    maxWidth: "200px",
-    margin: "40px auto 0",
-    textAlign: "center",
-    padding: "12px 24px",
-    background: "transparent",
-    color: "#8899aa",
-    textDecoration: "none",
-    borderRadius: "10px",
-    border: "1px solid #333",
-    transition: "all 0.3s",
-  },
+  container: { minHeight: "100vh", background: "#0a0b10", paddingBottom: "60px", fontFamily: "'Inter', sans-serif" },
+  hero: { padding: "60px 20px", textAlign: "center", color: "white", marginBottom: "40px" },
+  heroIcon: { fontSize: "50px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(255,255,255,0.3))" },
+  heroTitle: { fontSize: "42px", fontWeight: "800", letterSpacing: "-1px", marginBottom: "10px" },
+  heroDescription: { fontSize: "16px", color: "#8b949e", maxWidth: "500px", margin: "0 auto 30px" },
+  progressContainer: { maxWidth: "350px", margin: "0 auto" },
+  progressLabel: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "bold", letterSpacing: "1px", marginBottom: "8px", color: "#8b949e" },
+  progressBar: { height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px" },
+  progressFill: { height: "100%", borderRadius: "2px", boxShadow: "0 0 10px currentColor" },
+  levelsGrid: { maxWidth: "1000px", margin: "0 auto", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "25px" },
+  levelCard: { background: "#111218", borderRadius: "4px", padding: "24px", textDecoration: "none", border: "1px solid #21262d", transition: "0.3s cubic-bezier(0.4, 0, 0.2, 1)", position: "relative", overflow: "hidden" },
+  levelCardLocked: { opacity: 0.3, cursor: "not-allowed" },
+  levelCardCompleted: { borderColor: "#238636" },
+  levelCardCurrent: { borderColor: "#58a6ff", background: "rgba(56, 139, 253, 0.05)", boxShadow: "0 0 20px rgba(56, 139, 253, 0.1)" },
+  levelHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
+  levelNumber: { fontSize: "11px", fontWeight: "bold", color: "#8b949e", letterSpacing: "2px" },
+  checkIcon: { fontSize: "10px", color: "#238636", fontWeight: "bold", border: "1px solid #238636", padding: "2px 6px", borderRadius: "3px" },
+  levelContent: { marginBottom: "25px" },
+  statusTextLocked: { fontSize: "18px", fontWeight: "700", color: "#30363d" },
+  statusTextCompleted: { fontSize: "18px", fontWeight: "700", color: "#e6edf3" },
+  statusTextCurrent: { fontSize: "18px", fontWeight: "700", color: "#58a6ff" },
+  actionHint: { fontSize: "12px", fontWeight: "bold", letterSpacing: "0.5px" },
+  backButton: { display: "block", width: "fit-content", margin: "50px auto", color: "#8b949e", fontSize: "12px", fontWeight: "bold", letterSpacing: "1px", textDecoration: "none", borderBottom: "1px solid transparent", transition: "0.3s" }
 };
-
-// Добавляем hover эффекты через styleSheet
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  .level-card-available:hover {
-    transform: translateY(-5px);
-    border-color: #ff6b8a;
-    box-shadow: 0 10px 25px rgba(233,69,96,0.3);
-  }
-  
-  .level-card-available .play-button:hover {
-    background: #ff6b8a;
-    transform: scale(1.05);
-  }
-  
-  .back-button:hover {
-    color: #fff;
-    border-color: #e94560;
-  }
-`;
-document.head.appendChild(styleSheet);

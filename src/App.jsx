@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Router } from 'react-router-dom'
+import { Routes, Route, Navigate, Router , useLocation } from 'react-router-dom'
 import { useContext } from 'react'
 import { AppContext } from './context/AppContext'
 import Navbar from './components/Navbar'
@@ -9,62 +9,31 @@ import QuizPage from './pages/QuizPage'
 import "./styles/global.css"
 
 function App() {
+  const location = useLocation(); // Получаем текущий путь
   const context = useContext(AppContext);
   
-  if (!context) {
-    return <div>Loading...</div>;
-  }
-  
+  if (!context) return <div>Loading...</div>;
   const { user } = context;
 
   return (
     <>
       <Navbar />
-      <Routes>
+      <Routes location={location} key={location.pathname}> 
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
         <Route path="/subject/:subject" element={<SubjectPage />} />
-        <Route path="/quiz/:subject/:level" element={<QuizPage />} />
-        {/* Добавляем альтернативный маршрут для /game */}
-        <Route path="/game/:subject/:level" element={<QuizPage />} />
-        {/* Редирект со старых ссылок */}
+        {/* Добавляем key прямо в элемент страницы */}
+        <Route 
+          path="/quiz/:subject/:level" 
+          element={<QuizPage key={location.pathname} />} 
+        />
+        <Route 
+          path="/game/:subject/:level" 
+          element={<QuizPage key={location.pathname} />} 
+        />
         <Route path="/game/*" element={<Navigate to="/" />} />
       </Routes>
     </>
-  )
+  );
 }
-
-// function App() {
-//   const context = useContext(AppContext);
-  
-//   if (!context) {
-//     return <div>Loading...</div>;
-//   }
-  
-//   const { user } = context;
-
-//   return (
-//     <Routes>
-//       <div className="min-h-screen relative overflow-hidden bg-[#06060F]">
-//         <div className="bg-grid"></div>
-        
-//         {/* Glow orbs */}
-//         <div className="glow-orb orb1"></div>
-//         <div className="glow-orb orb2"></div>
-
-//         <Navbar />   
-
-//           <Route path="/" element={<HomePage />} />
-//          <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
-//          <Route path="/subject/:subject" element={<SubjectPage />} />
-//          <Route path="/quiz/:subject/:level" element={<QuizPage />} />
-//          {/* Добавляем альтернативный маршрут для /game */}
-//            <Route path="/game/:subject/:level" element={<QuizPage />} />
-//          {/* Редирект со старых ссылок */}
-//          <Route path="/game/*" element={<Navigate to="/" />} />
-//       </div>
-//     </Routes>
-//   );
-// }
-
 export default App;

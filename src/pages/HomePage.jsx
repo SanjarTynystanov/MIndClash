@@ -22,7 +22,7 @@ export default function HomePage() {
       {/* Статистика пользователя */}
       {user && (
         <div style={styles.statsCard}>
-          <h3>Welcome, {user.username}! 👋</h3>
+          <h3>Welcome, {user.username}! </h3>
           <div style={styles.statsGrid}>
             <div style={styles.statItem}>
               <div style={styles.statValue}>{totalScore}</div>

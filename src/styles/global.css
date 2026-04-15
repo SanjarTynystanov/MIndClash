@@ -463,3 +463,22 @@ body {
 
 .input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-size: 14px; color: var(--text); font-family: inherit; }
 .input:focus { outline: none; border-color: var(--physics); } 
+/* Эффект фейерверков при победе */
+.pyro > .before, .pyro > .after {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  box-shadow: 0 0 white, 100px -100px white, -100px -200px white; /* Упрощенно для примера */
+  animation: 1s bang ease-out infinite alternate, 1s gravity ease-in infinite alternate;
+}
+
+@keyframes bang { from { box-shadow: 0 0 white; } to { box-shadow: -100px 20px #58a6ff, 100px -50px #4caf50, 40px 100px #f2cc60; } }
+
+/* Наведения в стиле терминала */
+.level-card-available:hover {
+  transform: translateY(-4px);
+  background: rgba(255,255,255,0.02);
+  border-color: #58a6ff;
+}
+
+.level-card-available:active {
+  transform: scale(0.98);
+}
