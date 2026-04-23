@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import GameResult from '../components/GameResult'; // Убедись, что путь верный
+import GameResult from '../components/GameResult';
 
 const G = 9.8;
 const MAX_LIVES = 3;
@@ -26,11 +26,8 @@ export default function PhysicsGame({ level, onComplete }) {
   const [score, setScore] = useState(0);
   const [message, setMessage] = useState({ text: '', type: '' });
   
-  // Состояния для экранов окончания игры
   const [isGameOver, setIsGameOver] = useState(false);
   const [hasWon, setHasWon] = useState(false);
-  
-  // isFlying в стейте нужен для блокировки кнопки (чтобы React видел изменения)
   const [isFlying, setIsFlying] = useState(false);
   
   const canvasRef = useRef(null);
@@ -39,7 +36,30 @@ export default function PhysicsGame({ level, onComplete }) {
     trail: [], shake: 0
   });
 
-  const handleRestart = () => window.location.reload();
+  const handleRestart = () => {
+    // Сброс всех состояний
+    setLives(MAX_LIVES);
+    setScore(0);
+    setIsGameOver(false);
+    setHasWon(false);
+    setMessage({ text: '', type: '' });
+    setAngle(45);
+    setPower(50);
+    setIsFlying(false);
+    
+    // Сброс рефа
+    stateRef.current = {
+      t: 0, bx: 10, by: 2, vx: 0, vy: 0, mvx: 0, mvy: 0, phase: 0,
+      trail: [], shake: 0
+    };
+  };
+
+  const handleNextLevel = () => {
+    // Сообщаем родителю, что уровень пройден
+    if (onComplete) {
+      onComplete(true);
+    }
+  };
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -140,12 +160,14 @@ export default function PhysicsGame({ level, onComplete }) {
         const dist = Math.sqrt((s.bx - txm)**2 + (s.by - (tgt.ym || 0))**2);
 
         if (dist < tgt.r / SC) {
-          setIsFlying(false); s.shake = 15;
+          setIsFlying(false); 
+          s.shake = 15;
           setScore(prev => prev + 100);
           setMessage({ text: 'CRITICAL HIT! 🎯', type: 'ok' });
           setHasWon(true);
         } else if (s.by < -2 || s.bx > 220 || (lvl.laserOn && s.bx > 60 && s.bx < 200 && Math.abs(s.by - lvl.laserY) < 2)) {
-          setIsFlying(false); s.shake = 8;
+          setIsFlying(false); 
+          s.shake = 8;
           if (lives <= 1) {
             setIsGameOver(true);
           } else {
@@ -162,21 +184,65 @@ export default function PhysicsGame({ level, onComplete }) {
   }, [draw, lvl, lives, isFlying]);
 
   const fire = () => {
-    if (isFlying || lives <= 0) return;
+    if (isFlying || lives <= 0 || hasWon) return;
     setMessage({ text: '', type: '' });
     const s = stateRef.current;
     const rad = (angle * Math.PI) / 180;
-    s.vx = power * Math.cos(rad) + lvl.wind * 10; s.vy = power * Math.sin(rad);
-    s.bx = 10; s.by = 2; s.t = 0; s.mvx = 0; s.mvy = 0; s.trail = [];
+    s.vx = power * Math.cos(rad) + lvl.wind * 10; 
+    s.vy = power * Math.sin(rad);
+    s.bx = 10; 
+    s.by = 2; 
+    s.t = 0; 
+    s.mvx = 0; 
+    s.mvy = 0; 
+    s.trail = [];
     setIsFlying(true);
   };
 
-  // Вызов унифицированного экрана конца игры
-  if (isGameOver) {
-    return <GameResult status="lose" score={score} subjectName="Physics" onRestart={handleRestart} />;
-  }
+  // Экран победы - вызываем onComplete(true) для перехода на следующий уровень
   if (hasWon) {
-    return <GameResult status="win" score={score} subjectName="Physics" onRestart={() => onComplete(true)} />;
+    return (
+      <div style={styles.winScreen}>
+        <div style={styles.winContent}>
+          <div style={styles.winEmoji}>🏆✨🎯✨🏆</div>
+          <div style={styles.winTitle}>MISSION ACCOMPLISHED</div>
+          <div style={styles.winScore}>FINAL SCORE: {score} EU</div>
+          <div style={styles.winStatus}>STATUS: PASSED</div>
+          <div style={styles.winMessage}>
+            Experimental data successfully synchronized.<br />
+            The module requirements have been met.
+          </div>
+          <div style={styles.winButtons}>
+            <button onClick={handleNextLevel} style={styles.nextBtn}>
+              NEXT MODULE →
+            </button>
+            <button onClick={handleRestart} style={styles.restartBtn}>
+              EXIT TO TERMINAL
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Экран поражения
+  if (isGameOver) {
+    return (
+      <div style={styles.gameoverScreen}>
+        <div style={styles.gameoverContent}>
+          <div style={styles.gameoverEmoji}>💀⚡💀</div>
+          <div style={styles.gameoverTitle}>SYSTEM FAILURE</div>
+          <div style={styles.gameoverScore}>FINAL SCORE: {score} EU</div>
+          <div style={styles.gameoverMessage}>
+            Mission parameters not met.<br />
+            Terminating operation.
+          </div>
+          <button onClick={handleRestart} style={styles.restartBtn}>
+            RESTART MISSION
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -216,5 +282,63 @@ const styles = {
   slLabel: { fontSize: "11px", color: "#8b949e", fontWeight: "bold" },
   range: { accentColor: "#238636" },
   fireBtn: { background: "#238636", color: "white", border: "none", padding: "0 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-  msg: { marginTop: "15px", textAlign: "center", fontWeight: "bold", fontFamily: "monospace" }
+  msg: { marginTop: "15px", textAlign: "center", fontWeight: "bold", fontFamily: "monospace" },
+  
+  // Стили для экрана победы
+  winScreen: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "linear-gradient(135deg, #0a1a0f 0%, #0d1117 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  winContent: {
+    textAlign: "center",
+    background: "rgba(0,0,0,0.7)",
+    padding: "40px",
+    borderRadius: "24px",
+    border: "1px solid #FFD700",
+    backdropFilter: "blur(10px)",
+    maxWidth: "500px",
+  },
+  winEmoji: { fontSize: "64px", marginBottom: "16px" },
+  winTitle: { fontSize: "36px", fontWeight: "800", color: "#FFD700", marginBottom: "16px" },
+  winScore: { fontSize: "24px", fontWeight: "600", color: "#5DCAA5", marginBottom: "8px" },
+  winStatus: { fontSize: "18px", color: "#fff", marginBottom: "16px" },
+  winMessage: { fontSize: "14px", color: "rgba(255,255,255,0.6)", marginBottom: "24px", lineHeight: "1.5" },
+  winButtons: { display: "flex", gap: "16px", justifyContent: "center" },
+  nextBtn: { background: "linear-gradient(135deg, #1D9E75, #157a58)", color: "#fff", border: "none", padding: "12px 24px", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" },
+  restartBtn: { background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", padding: "12px 24px", borderRadius: "8px", fontSize: "16px", cursor: "pointer" },
+  
+  // Стили для экрана поражения
+  gameoverScreen: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "linear-gradient(135deg, #1a0a0a 0%, #0d1117 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  gameoverContent: {
+    textAlign: "center",
+    background: "rgba(0,0,0,0.7)",
+    padding: "40px",
+    borderRadius: "24px",
+    border: "1px solid #D85A30",
+    backdropFilter: "blur(10px)",
+    maxWidth: "500px",
+  },
+  gameoverEmoji: { fontSize: "64px", marginBottom: "16px" },
+  gameoverTitle: { fontSize: "36px", fontWeight: "800", color: "#D85A30", marginBottom: "16px" },
+  gameoverScore: { fontSize: "24px", fontWeight: "600", color: "#5DCAA5", marginBottom: "16px" },
+  gameoverMessage: { fontSize: "14px", color: "rgba(255,255,255,0.6)", marginBottom: "24px", lineHeight: "1.5" },
 };

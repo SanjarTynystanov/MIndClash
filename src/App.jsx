@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import SubjectPage from './pages/SubjectPage'
 import QuizPage from './pages/QuizPage'
+import ProfilePage from './pages/ProfilePage'
 import "./styles/global.css"
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
       <Routes location={location} key={location.pathname}> 
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/subject/:subject" element={<SubjectPage />} />
         {/* Добавляем key прямо в элемент страницы */}
         <Route 

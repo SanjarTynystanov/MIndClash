@@ -10,24 +10,35 @@ import "../styles/global.css";
 export default function QuizPage() {
   const { subject, level } = useParams();
   const navigate = useNavigate();
-  const { completeLevel } = useContext(AppContext);
+  const { completeLevelWithXP } = useContext(AppContext);
   
   const [gameCompleted, setGameCompleted] = useState(false);
   
   const currentLevel = parseInt(level) || 1;
-  const levelData = questions[subject]?.find(q => q.level === currentLevel);
   
-  console.log("QuizPage рендер:", { subject, level, currentLevel, gameCompleted });
+  // Проверяем, существует ли предмет
+  const subjectExists = questions[subject];
   
-  const handleGameComplete = (success) => {
+  console.log("QuizPage render:", { subject, level, currentLevel, subjectExists });
+  
+  const handleGameComplete = async (success, isPerfect = false) => {
     console.log("handleGameComplete вызван:", { success, currentLevel, subject });
     
     if (success) {
       setGameCompleted(true);
-      completeLevel(subject, currentLevel, 50);
+      
+      const result = await completeLevelWithXP(
+        subject, 
+        currentLevel, 
+        50, 
+        isPerfect, 
+        true
+      );
+      
+      console.log("XP result:", result);
       
       setTimeout(() => {
-        if (currentLevel < 5) {
+        if (currentLevel < 10) {
           const nextLevel = currentLevel + 1;
           const nextUrl = `/quiz/${subject}/${nextLevel}`;
           console.log("Переход на следующий уровень:", nextUrl);
@@ -38,20 +49,20 @@ export default function QuizPage() {
         }
       }, 1500);
     } else {
-      // Если игра проиграна - возвращаемся к выбору предмета
+      await completeLevelWithXP(subject, currentLevel, 0, false, false);
       setTimeout(() => {
         navigate(`/subject/${subject}`);
       }, 1500);
     }
   };
   
-  if (!levelData) {
+  if (!subjectExists) {
     return (
       <div style={styles.container}>
         <div style={styles.card}>
-          <h2>Level not found!</h2>
-          <button onClick={() => navigate(`/subject/${subject}`)} style={styles.button}>
-            Back to Subjects
+          <h2 style={{color: 'white'}}>Subject not found!</h2>
+          <button onClick={() => navigate('/')} style={styles.button}>
+            Back to Home
           </button>
         </div>
       </div>
@@ -62,8 +73,8 @@ export default function QuizPage() {
     return (
       <div style={styles.container}>
         <div style={styles.resultCard}>
-          <h1>🎉 Level Completed!</h1>
-          <p>+50 points earned!</p>
+          <h1 style={styles.winTitle}>🎉 Mission Accomplished!</h1>
+          <p style={styles.winText}>+50 points earned!</p>
           <button onClick={() => navigate(`/subject/${subject}`)} style={styles.button}>
             Continue →
           </button>
@@ -73,30 +84,34 @@ export default function QuizPage() {
   }
   
   const renderGame = () => {
-    console.log("Рендер игры для:", subject, "уровень:", currentLevel);
-    
     switch(subject) {
       case 'physics':
-        return <PhysicsGame level={level} onComplete={handleGameComplete} />
+        return <PhysicsGame 
+          key={`phys-${level}`}
+          level={currentLevel} 
+          onComplete={handleGameComplete} 
+        />;
       case 'chemistry':
         return <ChemistryGame 
+          key={`chem-${level}`}
+          level={currentLevel} 
           onComplete={handleGameComplete} 
-          level={currentLevel}
           onScoreUpdate={(points) => console.log("+", points)}
           onGameEnd={(result) => console.log("Game ended:", result)}
         />;
       case 'math':
         return <MathGame 
+          key={`math-${level}`}
+          level={currentLevel} 
           onComplete={handleGameComplete} 
-          level={currentLevel}
-          onGameOver={() => navigate(`/subject/${subject}`)}
+          onGameEnd={(result) => console.log("Game ended:", result)}
         />;
       default:
         return (
           <div style={styles.defaultGame}>
-            <h2>{levelData?.ru?.q || levelData?.question}</h2>
-            <button onClick={() => handleGameComplete(true)} style={styles.button}>
-              Complete Level
+            <h2>Unknown subject</h2>
+            <button onClick={() => navigate('/')} style={styles.button}>
+              Back to Home
             </button>
           </div>
         );
@@ -106,7 +121,7 @@ export default function QuizPage() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.badge}>{subject?.toUpperCase()} - Level {level}</div>
+        <div style={styles.badge}>{subject?.toUpperCase()} - Module {level}</div>
       </div>
       {renderGame()}
     </div>
@@ -116,7 +131,7 @@ export default function QuizPage() {
 const styles = {
   container: {
     minHeight: "100vh",
-    background: "#0a0a1a",
+    background: "#0a0b10",
     padding: "40px 20px",
   },
   header: {
@@ -127,41 +142,57 @@ const styles = {
     display: "inline-block",
     padding: "8px 20px",
     background: "#e94560",
-    borderRadius: "20px",
+    borderRadius: "4px",
     color: "#fff",
     fontWeight: "bold",
-  },
-  resultCard: {
-    maxWidth: "500px",
-    margin: "100px auto",
-    background: "#1a1a2e",
-    borderRadius: "15px",
-    padding: "40px",
-    textAlign: "center",
-    border: "1px solid #333",
+    letterSpacing: "1px"
   },
   button: {
     background: "#e94560",
     color: "white",
     border: "none",
     padding: "12px 30px",
-    fontSize: "16px",
-    borderRadius: "8px",
+    fontSize: "14px",
+    borderRadius: "4px",
     cursor: "pointer",
     marginTop: "20px",
+    fontWeight: "bold"
   },
   card: {
     maxWidth: "500px",
     margin: "100px auto",
-    background: "#1a1a2e",
-    borderRadius: "15px",
+    background: "#0d1117",
+    borderRadius: "8px",
     padding: "40px",
     textAlign: "center",
+    border: "1px solid #30363d"
+  },
+  resultCard: {
+    maxWidth: "500px",
+    margin: "100px auto",
+    background: "#0d1117",
+    borderRadius: "8px",
+    padding: "40px",
+    textAlign: "center",
+    border: "1px solid #e94560",
+  },
+  winTitle: {
+    color: "#e94560",
+    fontSize: "28px",
+    marginBottom: "16px",
+  },
+  winText: {
+    color: "#fff",
+    fontSize: "16px",
+    marginBottom: "20px",
   },
   defaultGame: {
-    background: "#1a1a2e",
-    borderRadius: "15px",
+    maxWidth: "500px",
+    margin: "100px auto",
+    background: "#0d1117",
+    borderRadius: "8px",
     padding: "40px",
     textAlign: "center",
+    border: "1px solid #30363d",
   },
 };

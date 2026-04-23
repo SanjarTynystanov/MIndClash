@@ -17,7 +17,7 @@ export default function Navbar() {
         <Link to="/" style={styles.logo}>
           🧠 MindClash
         </Link>
-        
+       
         <div style={styles.links}>
           {user ? (
             <>
@@ -30,6 +30,9 @@ export default function Navbar() {
             <Link to="/auth" style={styles.link}>Login / Register</Link>
           )}
         </div>
+         <Link to="/profile" style={styles.navLink}>
+           👤 Profile
+       </Link>
       </div>
     </nav>
   );
