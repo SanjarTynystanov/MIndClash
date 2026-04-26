@@ -1,21 +1,21 @@
-const express = require("express");
-const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_12345";
+const PORT = 3001;
+const JWT_SECRET = 'sciquest-super-secret-key-2024';
 
-// Подключение SQLite
-const db = new sqlite3.Database(path.join(__dirname, "mindclash.db"));
-global.db = db;
+app.use(cors());
+app.use(express.json());
 
-// Создание таблиц
+// Database
+const db = new sqlite3.Database('./mindclash.db');
+
+// Create tables
 db.serialize(() => {
-  // Таблица users
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -23,238 +23,268 @@ db.serialize(() => {
     xp INTEGER DEFAULT 0,
     level INTEGER DEFAULT 1,
     streak INTEGER DEFAULT 0,
-    highest_streak INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_active DATETIME DEFAULT CURRENT_TIMESTAMP
+    highest_streak INTEGER DEFAULT 0
   )`);
   
-  // Таблица progress
-  db.run(`CREATE TABLE IF NOT EXISTS progress (
+  db.run(`CREATE TABLE IF NOT EXISTS game_progress (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    subject TEXT NOT NULL,
-    level INTEGER DEFAULT 0,
-    score INTEGER DEFAULT 0,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
+    user_id INTEGER,
+    subject TEXT,
+    difficulty TEXT,
+    level_completed INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    UNIQUE(user_id, subject, difficulty)
+  )`);
+  
+  db.run(`CREATE TABLE IF NOT EXISTS game_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    subject TEXT,
+    total_games INTEGER DEFAULT 0,
+    total_wins INTEGER DEFAULT 0,
+    total_perfect_games INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users (id),
     UNIQUE(user_id, subject)
   )`);
-  
-  // Таблица scores
-  db.run(`CREATE TABLE IF NOT EXISTS scores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    subject TEXT NOT NULL,
-    score INTEGER DEFAULT 0,
-    level INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )`);
-  
-  console.log("✅ SQLite tables ready");
 });
 
-app.use(cors({ origin: "http://localhost:5173" }));
-app.use(express.json());
-
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-const xpNeededForLevel = (level) => Math.floor(100 * Math.pow(level, 1.5));
-
-// ===== РОУТЫ =====
-
-// Health check
-app.get("/api/health", (req, res) => res.json({ ok: true }));
-
-// Регистрация
-app.post("/api/auth/register", async (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password required" });
+// Questions for all subjects
+const QUESTIONS = {
+  physics: {
+    easy: [
+      { id: 1, question: 'What is the unit of force?', options: ['Joule', 'Watt', 'Newton', 'Pascal'], correct: 2 },
+      { id: 2, question: 'What is 9.8 m/s²?', options: ['Speed of light', 'Gravity', 'Sound speed', 'Light speed'], correct: 1 },
+      { id: 3, question: 'What is the formula for speed?', options: ['d/t', 't/d', 'd*t', 'm/a'], correct: 0 },
+      { id: 4, question: 'What unit is power measured in?', options: ['Joule', 'Watt', 'Newton', 'Pascal'], correct: 1 },
+      { id: 5, question: 'What is Ohm\'s Law?', options: ['V=IR', 'I=VR', 'R=VI', 'V=I/R'], correct: 0 }
+    ],
+    medium: [
+      { id: 6, question: 'Speed of light in vacuum?', options: ['3e8 m/s', '3e6 m/s', '3e10 m/s', '3e5 m/s'], correct: 0 },
+      { id: 7, question: 'Kinetic energy formula?', options: ['1/2mv²', 'mv²', 'mgh', '1/2mv'], correct: 0 },
+      { id: 8, question: 'Newton\'s third law?', options: ['Action-reaction', 'F=ma', 'Inertia', 'Gravity'], correct: 0 },
+      { id: 9, question: 'What is wavelength?', options: ['Distance between waves', 'Wave height', 'Wave speed', 'Wave frequency'], correct: 0 },
+      { id: 10, question: 'What is frequency measured in?', options: ['Hertz', 'Meters', 'Seconds', 'Joules'], correct: 0 }
+    ],
+    hard: [
+      { id: 11, question: 'Planck\'s constant value?', options: ['6.63e-34', '3.14e-34', '9.81e-34', '1.62e-34'], correct: 0 },
+      { id: 12, question: 'Schrödinger equation for?', options: ['Quantum', 'Relativity', 'Thermo', 'Electro'], correct: 0 },
+      { id: 13, question: 'Escape velocity Earth?', options: ['11.2 km/s', '7.9 km/s', '9.8 km/s', '15 km/s'], correct: 0 },
+      { id: 14, question: 'E=mc² is?', options: ['Relativity', 'Quantum', 'Thermo', 'Electro'], correct: 0 },
+      { id: 15, question: 'Heisenberg principle?', options: ['Δx·Δp ≥ ħ/2', 'E=mc²', 'F=ma', 'V=IR'], correct: 0 }
+    ]
+  },
+  chemistry: {
+    easy: [
+      { id: 1, question: 'Symbol for Gold?', options: ['Au', 'Ag', 'Fe', 'Cu'], correct: 0 },
+      { id: 2, question: 'H2O is?', options: ['Water', 'Oxygen', 'Hydrogen', 'Salt'], correct: 0 },
+      { id: 3, question: 'pH of pure water?', options: ['7', '0', '14', '5'], correct: 0 },
+      { id: 4, question: 'Lightest element?', options: ['Hydrogen', 'Helium', 'Oxygen', 'Carbon'], correct: 0 },
+      { id: 5, question: 'Plants absorb?', options: ['CO2', 'O2', 'N2', 'H2'], correct: 0 }
+    ],
+    medium: [
+      { id: 6, question: 'Atomic number of Carbon?', options: ['6', '4', '8', '12'], correct: 0 },
+      { id: 7, question: 'Table salt formula?', options: ['NaCl', 'KCl', 'CaCl2', 'MgCl2'], correct: 0 },
+      { id: 8, question: 'Noble gas?', options: ['Neon', 'Oxygen', 'Nitrogen', 'Chlorine'], correct: 0 },
+      { id: 9, question: 'Rusting is?', options: ['Oxidation', 'Reduction', 'Combustion', 'Melting'], correct: 0 },
+      { id: 10, question: 'Covalent bond shares?', options: ['Electrons', 'Protons', 'Neutrons', 'Ions'], correct: 0 }
+    ],
+    hard: [
+      { id: 11, question: 'Avogadro\'s number?', options: ['6.02e23', '3.14e23', '1.61e23', '9.81e23'], correct: 0 },
+      { id: 12, question: 'Highest electronegativity?', options: ['Fluorine', 'Oxygen', 'Chlorine', 'Nitrogen'], correct: 0 },
+      { id: 13, question: 'Methane hybridization?', options: ['sp³', 'sp', 'sp²', 'sp³d'], correct: 0 },
+      { id: 14, question: 'pH of 0.1M HCl?', options: ['1', '2', '3', '4'], correct: 0 },
+      { id: 15, question: 'Quantum number for shape?', options: ['l', 'n', 'm', 's'], correct: 0 }
+    ]
+  },
+  math: {
+    easy: [
+      { id: 1, question: '15 + 27 = ?', options: ['42', '32', '40', '52'], correct: 0 },
+      { id: 2, question: '100 - 45 = ?', options: ['55', '65', '45', '35'], correct: 0 },
+      { id: 3, question: '8 × 7 = ?', options: ['56', '48', '64', '42'], correct: 0 },
+      { id: 4, question: '144 ÷ 12 = ?', options: ['12', '10', '11', '13'], correct: 0 },
+      { id: 5, question: '5² = ?', options: ['25', '10', '20', '30'], correct: 0 }
+    ],
+    medium: [
+      { id: 6, question: '2x + 5 = 15, x = ?', options: ['5', '3', '7', '10'], correct: 0 },
+      { id: 7, question: 'Slope of y = 3x + 2?', options: ['3', '2', '5', '1'], correct: 0 },
+      { id: 8, question: '(x+3)(x-3) = ?', options: ['x²-9', 'x²+9', 'x²-6x+9', 'x²+6x+9'], correct: 0 },
+      { id: 9, question: 'π ≈ ?', options: ['3.14', '3.12', '3.16', '3.18'], correct: 0 },
+      { id: 10, question: '2/3 + 1/6 = ?', options: ['5/6', '1/2', '2/3', '1'], correct: 0 }
+    ],
+    hard: [
+      { id: 11, question: 'Derivative of x²?', options: ['2x', 'x', 'x²', '2'], correct: 0 },
+      { id: 12, question: '∫ x dx = ?', options: ['x²/2 + C', 'x² + C', '2x + C', 'x + C'], correct: 0 },
+      { id: 13, question: 'log₂(8) = ?', options: ['3', '2', '4', '8'], correct: 0 },
+      { id: 14, question: 'sin(90°) = ?', options: ['1', '0', '-1', '0.5'], correct: 0 },
+      { id: 15, question: 'e ≈ ?', options: ['2.7', '2.8', '2.9', '3.0'], correct: 0 }
+    ]
   }
-  
-  if (username.length < 3) {
-    return res.status(400).json({ error: "Username must be at least 3 characters" });
-  }
-  
-  if (password.length < 4) {
-    return res.status(400).json({ error: "Password must be at least 4 characters" });
-  }
+};
 
+// Middleware
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  
   try {
-    const hashed = await bcrypt.hash(password, 10);
-    
-    db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hashed], function(err) {
-      if (err) {
-        if (err.message.includes("UNIQUE")) {
-          return res.status(400).json({ error: "Username already taken" });
-        }
-        console.error("DB error:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-      
-      const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: "7d" });
-      res.json({ 
-        token, 
-        user: { id: this.lastID, username, xp: 0, level: 1 } 
-      });
-    });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(403).json({ error: 'Invalid token' });
   }
-});
+};
 
-// Логин
-app.post("/api/auth/login", async (req, res) => {
+// Auth routes
+app.post('/api/register', (req, res) => {
   const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password required" });
-  }
-
-  db.get("SELECT * FROM users WHERE username = ?", [username], async (err, user) => {
-    if (err) {
-      console.error("DB error:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    
-    if (!user) {
-      return res.status(400).json({ error: "Invalid credentials" });
-    }
-    
-    try {
-      const valid = await bcrypt.compare(password, user.password);
-      if (!valid) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-      
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-      res.json({ 
-        token, 
-        user: { id: user.id, username: user.username, xp: user.xp || 0, level: user.level || 1 } 
-      });
-    } catch (bcryptErr) {
-      console.error("Bcrypt error:", bcryptErr);
-      res.status(500).json({ error: "Server error" });
-    }
+  db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, password], function(err) {
+    if (err) return res.status(400).json({ error: 'Username exists' });
+    const token = jwt.sign({ id: this.lastID, username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: this.lastID, username, xp: 0, level: 1, streak: 0 } });
   });
 });
 
-// Профиль (возвращает прогресс для ВСЕХ предметов)
-app.get("/api/profile", (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: "No token" });
-  }
-  
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.userId;
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, user) => {
+    if (err || !user) return res.status(401).json({ error: 'Invalid credentials' });
+    const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, username, xp: user.xp, level: user.level, streak: user.streak } });
+  });
+});
+
+app.get('/api/profile', auth, (req, res) => {
+  db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, user) => {
+    if (err || !user) return res.status(404).json({ error: 'User not found' });
     
-    db.get("SELECT id, username, xp, level, streak, highest_streak FROM users WHERE id = ?", [userId], (err, user) => {
-      if (err || !user) {
-        return res.status(404).json({ error: "User not found" });
-      }
+    db.all('SELECT subject, difficulty, level_completed FROM game_progress WHERE user_id = ?', [user.id], (err, progress) => {
+      const progressMap = {};
+      progress.forEach(p => { progressMap[`${p.subject}_${p.difficulty}`] = p.level_completed; });
       
-      // Получаем прогресс и создаём объект со ВСЕМИ предметами
-      db.all("SELECT subject, level, score FROM progress WHERE user_id = ?", [userId], (err, progressRows) => {
-        // Создаём объект с дефолтными значениями для всех предметов
-        const progress = {
-          physics: { levelCompleted: 0, bestScore: 0 },
-          chemistry: { levelCompleted: 0, bestScore: 0 },
-          math: { levelCompleted: 0, bestScore: 0 }
-        };
-        
-        if (progressRows) {
-          progressRows.forEach(row => {
-            progress[row.subject] = {
-              levelCompleted: row.level || 0,
-              bestScore: row.score || 0
-            };
-          });
-        }
+      db.all('SELECT subject, total_games, total_wins, total_perfect_games FROM game_stats WHERE user_id = ?', [user.id], (err, stats) => {
+        const totalStats = { total_games: 0, total_wins: 0, total_perfect_games: 0 };
+        stats.forEach(s => {
+          totalStats.total_games += s.total_games;
+          totalStats.total_wins += s.total_wins;
+          totalStats.total_perfect_games += s.total_perfect_games;
+        });
         
         res.json({
-          user: { 
-            ...user, 
-            xpNeededForNext: xpNeededForLevel(user.level + 1),
-            xpToNextLevel: xpNeededForLevel(user.level + 1) - (user.xp || 0)
-          },
-          progress,
-          totalScore: user.xp || 0,
-          stats: { total_games: 0, total_wins: 0, total_perfect_games: 0 }
+          user: { ...user, xpNeededForNext: 100 },
+          progress: progressMap,
+          stats: totalStats
         });
       });
     });
-  } catch (err) {
-    console.error("Token error:", err);
-    res.status(401).json({ error: "Invalid token" });
+  });
+});
+
+app.post('/api/update-progress', auth, (req, res) => {
+  const { subject, difficulty, completed, perfect } = req.body;
+  const userId = req.user.id;
+  
+  if (!subject || !difficulty) {
+    return res.status(400).json({ error: 'Missing subject or difficulty' });
+  }
+
+  console.log(`Saving: user=${req.user.username}, ${subject}/${difficulty}, win=${completed}, perfect=${perfect}`);
+  
+  const updateProgress = (cb) => {
+    if (!completed) return cb(null);
+
+    db.run(`INSERT INTO game_progress (user_id, subject, difficulty, level_completed) 
+            VALUES (?, ?, ?, 1)
+            ON CONFLICT(user_id, subject, difficulty) 
+            DO UPDATE SET level_completed = level_completed + 1`, [userId, subject, difficulty], cb);
+  };
+
+  const updateStats = (cb) => {
+    db.run(`INSERT INTO game_stats (user_id, subject, total_games, total_wins, total_perfect_games) 
+            VALUES (?, ?, 1, ?, ?)
+            ON CONFLICT(user_id, subject) 
+            DO UPDATE SET 
+              total_games = total_games + 1,
+              total_wins = total_wins + ?,
+              total_perfect_games = total_perfect_games + ?`,
+            [userId, subject, completed ? 1 : 0, perfect ? 1 : 0, completed ? 1 : 0, perfect ? 1 : 0], cb);
+  };
+
+  const xpGain = (completed ? 10 : 0) + (perfect ? 5 : 0);
+
+  updateProgress((err) => {
+    if (err) {
+      console.error('Update progress error:', err);
+      return res.status(500).json({ error: 'Failed to update progress' });
+    }
+
+    updateStats((err) => {
+      if (err) {
+        console.error('Update stats error:', err);
+        return res.status(500).json({ error: 'Failed to update stats' });
+      }
+
+      db.get('SELECT xp, level, streak FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err || !user) {
+          console.error('Fetch user for XP update failed:', err);
+          return res.status(500).json({ error: 'Failed to load user data' });
+        }
+
+        const newXp = user.xp + xpGain;
+        const newLevel = 1 + Math.floor(newXp / 100);
+        const newStreak = completed ? user.streak + 1 : 0;
+
+        db.run('UPDATE users SET xp = ?, level = ?, streak = ? WHERE id = ?', [newXp, newLevel, newStreak, userId], (err) => {
+          if (err) {
+            console.error('Update user XP error:', err);
+            return res.status(500).json({ error: 'Failed to update user XP' });
+          }
+
+          res.json({ success: true, xp_gain: xpGain, new_xp: newXp, new_level: newLevel, new_streak: newStreak });
+        });
+      });
+    });
+  });
+});
+
+// Question routes
+app.get('/api/:subject/questions/:difficulty', (req, res) => {
+  const { subject, difficulty } = req.params;
+  if (!QUESTIONS[subject]) return res.status(404).json({ error: 'Subject not found' });
+  const questions = QUESTIONS[subject][difficulty] || QUESTIONS[subject].easy;
+  res.json({ questions });
+});
+
+app.post('/api/:subject/answer', (req, res) => {
+  const { subject } = req.params;
+  const { question_id, answer, difficulty } = req.body;
+  
+  if (!QUESTIONS[subject]) return res.status(404).json({ error: 'Subject not found' });
+  
+  const questions = QUESTIONS[subject][difficulty] || QUESTIONS[subject].easy;
+  const question = questions.find(q => q.id === question_id);
+  
+  if (question) {
+    const isCorrect = question.correct === answer;
+    res.json({
+      correct: isCorrect,
+      correct_answer: question.options[question.correct],
+      explanation: isCorrect ? 'Correct!' : `The correct answer is ${question.options[question.correct]}`
+    });
+  } else {
+    res.status(404).json({ error: 'Question not found' });
   }
 });
 
-// Leaderboard
-app.get("/api/leaderboard", (req, res) => {
-  db.all(`
-    SELECT username, COALESCE(SUM(score), 0) as total_score 
-    FROM users 
-    LEFT JOIN scores ON users.id = scores.user_id 
-    GROUP BY users.id 
-    ORDER BY total_score DESC 
-    LIMIT 10
-  `, (err, rows) => {
-    if (err) {
-      console.error("Leaderboard error:", err);
-      return res.json([]);
-    }
+app.get('/api/leaderboard', (req, res) => {
+  db.all('SELECT username, xp as total_score FROM users ORDER BY xp DESC LIMIT 10', [], (err, rows) => {
     res.json(rows || []);
   });
 });
 
-// Обновление прогресса
-app.post("/api/progress", (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: "No token" });
-  }
-  
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.userId;
-    const { subject, level, score, isWin } = req.body;
-    
-    // Сохраняем результат в scores
-    db.run("INSERT INTO scores (user_id, subject, score, level) VALUES (?, ?, ?, ?)",
-      [userId, subject, score, level]);
-    
-    // Обновляем прогресс
-    db.run(`
-      INSERT INTO progress (user_id, subject, level, score)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(user_id, subject) DO UPDATE SET
-        level = MAX(level, excluded.level),
-        score = MAX(score, excluded.score),
-        updated_at = CURRENT_TIMESTAMP
-    `, [userId, subject, level, score]);
-    
-    // Начисляем XP
-    const xpGain = isWin ? 50 : 10;
-    db.get("SELECT xp, level FROM users WHERE id = ?", [userId], (err, user) => {
-      if (err) return res.status(500).json({ error: "DB error" });
-      
-      const newXp = (user?.xp || 0) + xpGain;
-      const newLevel = Math.floor(Math.pow(newXp / 100, 1/1.5)) + 1;
-      db.run("UPDATE users SET xp = ?, level = ? WHERE id = ?", [newXp, newLevel, userId]);
-      
-      res.json({ success: true, xpGained: xpGain, newXp, newLevel });
-    });
-  } catch (err) {
-    console.error("Progress error:", err);
-    res.status(401).json({ error: "Invalid token" });
-  }
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`📚 Physics: http://localhost:${PORT}/api/physics/questions/easy`);
+  console.log(`🧪 Chemistry: http://localhost:${PORT}/api/chemistry/questions/easy`);
+  console.log(`📐 Math: http://localhost:${PORT}/api/math/questions/easy`);
 });
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => console.log(`MindClash backend running on port ${PORT}`));

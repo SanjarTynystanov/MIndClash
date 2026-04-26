@@ -1,16 +1,15 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { AppContext } from "./AppContext.js";
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const AppContext = createContext();
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = "http://localhost:3001";
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [progress, setProgress] = useState({ physics: 0, chemistry: 0, math: 0 });
+  const [progress, setProgress] = useState({});
   const [totalScore, setTotalScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
@@ -22,63 +21,52 @@ export function AppProvider({ children }) {
     localStorage.removeItem("offlineProgress");
     setToken(null);
     setUser(null);
-    setProgress({ physics: 0, chemistry: 0, math: 0 });
+    setProgress({});
+    setStats({});
     setTotalScore(0);
     setXp(0);
     setLevel(1);
     setStreak(0);
   }, []);
 
-  // Функция fetchProfile - с нормализацией прогресса
+  // Функция fetchProfile
   const fetchProfile = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     
     try {
+      console.log("Fetching profile from:", `${API_URL}/api/profile`);
       const res = await fetch(`${API_URL}/api/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       if (res.ok) {
         const data = await res.json();
-        console.log("Raw profile data:", data);
+        console.log("Profile data received:", data);
         
         setUser(data.user);
+        setStats(data.stats || {});
         
-        // НОРМАЛИЗАЦИЯ ПРОГРЕССА - извлекаем levelCompleted
+        // Нормализация прогресса
         const rawProgress = data.progress || {};
-        const normalizedProgress = {
-          physics: 0,
-          chemistry: 0,
-          math: 0
-        };
+        setProgress(rawProgress);
         
-        // physics
-        if (rawProgress.physics) {
-          const phys = rawProgress.physics;
-          normalizedProgress.physics = typeof phys === 'number' ? phys : (phys.levelCompleted || 0);
-        }
-        // chemistry
-        if (rawProgress.chemistry) {
-          const chem = rawProgress.chemistry;
-          normalizedProgress.chemistry = typeof chem === 'number' ? chem : (chem.levelCompleted || 0);
-        }
-        // math
-        if (rawProgress.math) {
-          const math = rawProgress.math;
-          normalizedProgress.math = typeof math === 'number' ? math : (math.levelCompleted || 0);
-        }
-        
-        console.log("Normalized progress:", normalizedProgress);
-        setProgress(normalizedProgress);
-        setTotalScore(data.totalScore || data.user?.xp || 0);
+        setTotalScore(data.user?.xp || 0);
         setXp(data.user?.xp || 0);
         setLevel(data.user?.level || 1);
         setStreak(data.user?.streak || 0);
       } else if (res.status === 401) {
+        console.log("Token expired, logging out");
         logout();
+      } else {
+        console.error("Profile fetch failed with status:", res.status);
       }
     } catch (error) {
       console.error("Fetch profile error:", error);
+    } finally {
+      setLoading(false);
     }
   }, [token, logout]);
 
@@ -92,70 +80,58 @@ export function AppProvider({ children }) {
       }
     } catch (error) {
       console.error("Fetch leaderboard error:", error);
+      setLeaderboard([]);
     }
   }, []);
 
-  // ОСНОВНАЯ ФУНКЦИЯ - completeLevelWithXP
-  const completeLevelWithXP = useCallback(async (subject, levelNum, score, isPerfect = false, isWin = true) => {
-    console.log("completeLevelWithXP called:", { subject, levelNum, score, isPerfect, isWin });
-    
+  // Обновление прогресса после игры
+  const updateGameProgress = useCallback(async (subject, difficulty, completed, perfect) => {
     if (!token) {
-      console.log('Offline mode: XP not saved');
-      return { success: true, xpGained: isWin ? 100 : 10 };
+      console.log('No token, progress not saved');
+      return { success: true, xp_gain: completed ? 10 : 0 };
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/progress`, {
+      // Правильный URL для обновления прогресса
+      const res = await fetch(`${API_URL}/api/update-progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          subject, 
-          level: levelNum, 
-          score, 
-          isPerfect, 
-          isWin 
-        })
+        body: JSON.stringify({ subject, difficulty, completed, perfect })
       });
 
       if (res.ok) {
         const data = await res.json();
-        console.log("XP response:", data);
+        console.log("Progress update response:", data);
         
-        setTotalScore(prev => prev + score);
-        setProgress(prev => ({
-          ...prev,
-          [subject]: Math.max(prev[subject], levelNum)
-        }));
+        if (data.new_xp) {
+          setXp(data.new_xp);
+          setTotalScore(data.new_xp);
+        }
+        if (data.new_level) setLevel(data.new_level);
+        if (data.new_streak !== undefined) setStreak(data.new_streak);
         
-        if (data.newXp) setXp(data.newXp);
-        if (data.newLevel) setLevel(data.newLevel);
+        await fetchProfile();
         
         return { success: true, ...data };
       } else if (res.status === 401) {
         logout();
         return { success: false, error: 'Unauthorized' };
       } else {
-        const error = await res.json();
-        return { success: false, error: error.error };
+        return { success: false, error: 'Update failed' };
       }
     } catch (error) {
-      console.error('Complete level error:', error);
+      console.error('Update progress error:', error);
       return { success: false, error: 'Network error' };
     }
-  }, [token, logout]);
+  }, [token, logout, fetchProfile]);
 
-  // Старая функция completeLevel (для совместимости)
-  const completeLevel = useCallback(async (subject, levelNum, score) => {
-    return completeLevelWithXP(subject, levelNum, score, false, true);
-  }, [completeLevelWithXP]);
-
-  // Функция login
+  // Login
   const login = useCallback(async (username, password) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
@@ -166,25 +142,28 @@ export function AppProvider({ children }) {
         localStorage.setItem("token", data.token);
         setToken(data.token);
         setUser(data.user);
-        setProgress({ physics: 0, chemistry: 0, math: 0 });
-        setTotalScore(0);
-        setXp(0);
-        setLevel(1);
+        setXp(data.user.xp || 0);
+        setLevel(data.user.level || 1);
+        setStreak(data.user.streak || 0);
+        
+        await fetchProfile();
+        await fetchLeaderboard();
+        
         return { success: true };
       } else {
         const error = await res.json();
-        return { success: false, error: error.message || "Login failed" };
+        return { success: false, error: error.error || "Login failed" };
       }
     } catch (error) {
       console.error("Login error:", error);
       return { success: false, error: "Network error" };
     }
-  }, []);
+  }, [fetchProfile, fetchLeaderboard]);
 
-  // Функция register
+  // Register
   const register = useCallback(async (username, password) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/register`, {
+      const res = await fetch(`${API_URL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
@@ -195,36 +174,28 @@ export function AppProvider({ children }) {
         localStorage.setItem("token", data.token);
         setToken(data.token);
         setUser(data.user);
-        setProgress({ physics: 0, chemistry: 0, math: 0 });
-        setTotalScore(0);
-        setXp(0);
-        setLevel(1);
+        setXp(data.user.xp || 0);
+        setLevel(data.user.level || 1);
+        setStreak(data.user.streak || 0);
+        
+        await fetchProfile();
+        await fetchLeaderboard();
+        
         return { success: true };
       } else {
         const error = await res.json();
-        return { success: false, error: error.message || "Registration failed" };
+        return { success: false, error: error.error || "Registration failed" };
       }
     } catch (error) {
       console.error("Register error:", error);
       return { success: false, error: "Network error" };
     }
-  }, []);
+  }, [fetchProfile, fetchLeaderboard]);
 
-  // Инициализация данных при загрузке приложения
+  // Initial load
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      
-      const savedProgress = localStorage.getItem("offlineProgress");
-      if (savedProgress && !token) {
-        const offline = JSON.parse(savedProgress);
-        setProgress({
-          physics: offline.physics || 0,
-          chemistry: offline.chemistry || 0,
-          math: offline.math || 0
-        });
-        setTotalScore(offline.totalScore || 0);
-      }
       
       if (token) {
         await fetchProfile();
@@ -243,6 +214,7 @@ export function AppProvider({ children }) {
     user,
     token,
     progress,
+    stats,
     totalScore,
     leaderboard,
     loading,
@@ -252,8 +224,7 @@ export function AppProvider({ children }) {
     login,
     register,
     logout,
-    completeLevel,
-    completeLevelWithXP,
+    updateGameProgress,
     fetchLeaderboard,
     fetchProfile,
   };
